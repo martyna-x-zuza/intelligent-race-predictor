@@ -8,7 +8,7 @@ Predict running race times (5 km to marathon) from Strava and Garmin training da
 
 - [x] 1. Project setup and data model
 - [x] 2. Data ingestion
-- [ ] 3. Cleaning and feature pipeline
+- [x] 3. Cleaning and feature pipeline
 - [ ] 4. Baselines and evaluation
 - [ ] 5. LSTM and GRU models
 - [ ] 6. Application and final delivery
@@ -40,6 +40,13 @@ src/race_predictor/
 ├── exceptions.py       # RacePredictorError and its subclasses
 ├── domain/
 │   └── models.py       # Activity, ActivityType, Athlete, Race, RaceCategory
+├── processing/
+│   ├── pipeline.py     # Step, Pipeline and the cleaning steps
+│   ├── races.py        # race detection strategies
+│   ├── cleaning.py     # cleaning_pipeline("train" | "predict")
+│   └── windows.py      # leak-free training windows (generator)
+├── features/
+│   └── dataset.py      # RaceDataset: one example per race
 └── sources/
     ├── base.py         # ActivitySource adapter, registry, format detection
     ├── parsing.py      # raw cell -> canonical number helpers
@@ -59,7 +66,7 @@ All quantities use canonical units (metres, seconds, m/s, bpm, °C); a missing m
 - `Race`: a run together with its `RaceCategory` (5k, 10k, half marathon, marathon or other).
 
 The domain layer checks only structural invariants. Plausibility checks on messy real-world data
-(impossible speeds or heart rates) are part of the cleaning pipeline (milestone 3).
+(impossible speeds or heart rates) are part of the cleaning pipeline.
 
 ## Data ingestion
 
@@ -85,6 +92,36 @@ frame = athletes_to_frame(athletes)  # one row per activity, NaN for missing
   dropping the activity.
 - Athletes loaded from a directory are named `<source>_<n>`, not after the (possibly personal)
   file names.
+
+## Cleaning and features
+
+Cleaning is a `Pipeline` of small `Step` objects. Each one takes the activity table and returns a
+new one, so steps can be tested alone, reordered or switched off.
+
+```python
+from race_predictor.features import build_race_dataset
+from race_predictor.processing import cleaning_pipeline
+
+cleaned = cleaning_pipeline("train").run(frame)
+dataset = build_race_dataset(cleaned)  # one example per race
+```
+
+- **One definition for training and prediction.** `cleaning_pipeline("train")` and
+  `cleaning_pipeline("predict")` share the same first steps, so a data fix cannot reach only
+  one of them. They differ only where they must: prediction keeps runs without heart rate
+  and imputes gaps after race detection, so imputed values never make a run look like a race.
+- **Steps:** remove implausible runs (thesis thresholds), rides logged as runs (more than
+  1.7x the athlete's median speed), heart-rate sensor spikes and athletes without heart rate.
+  Then estimate HRmax, mark runs right after a ride, and detect races.
+- **Race detection is a strategy.** Anything with `detect(df) -> Series[bool]` satisfies the
+  `RaceDetector` protocol. `HeuristicRaceDetector` ports the thesis heuristic (high heart rate,
+  speed spike, standard distance, ...) and `reasons()` shows why a run was flagged.
+  `StandardDistanceDetector` is a simple alternative.
+- **No leakage.** A race's features use only activities strictly before the race date:
+  `training_windows()` and `build_race_dataset()` both enforce it.
+- `RaceDataset` holds a run sequence per race (for recurrent models), tabular features
+  (cross-training totals, volume and pace summaries, the Riegel reference run) and the race
+  pace in s/km as the target.
 
 ## Errors
 

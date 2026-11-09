@@ -9,7 +9,7 @@ Predict running race times (5 km to marathon) from Strava and Garmin training da
 - [x] 1. Project setup and data model
 - [x] 2. Data ingestion
 - [x] 3. Cleaning and feature pipeline
-- [ ] 4. Baselines and evaluation
+- [x] 4. Baselines and evaluation
 - [ ] 5. LSTM and GRU models
 - [ ] 6. Application and final delivery
 
@@ -47,6 +47,14 @@ src/race_predictor/
 │   └── windows.py      # leak-free training windows (generator)
 ├── features/
 │   └── dataset.py      # RaceDataset: one example per race
+├── models/
+│   ├── base.py         # RaceModel interface
+│   └── baselines.py    # Riegel formula, ridge regression, gradient boosting
+├── evaluation/
+│   ├── metrics.py      # MAE, RMSE, MAPE, median APE
+│   ├── splits.py       # chronological split and athlete-grouped CV
+│   └── runner.py       # model comparison, CLI that writes docs/RESULTS_BASELINES.md
+├── utils.py            # timer() context manager
 └── sources/
     ├── base.py         # ActivitySource adapter, registry, format detection
     ├── parsing.py      # raw cell -> canonical number helpers
@@ -122,6 +130,33 @@ dataset = build_race_dataset(cleaned)  # one example per race
 - `RaceDataset` holds a run sequence per race (for recurrent models), tabular features
   (cross-training totals, volume and pace summaries, the Riegel reference run) and the race
   pace in s/km as the target.
+
+## Baselines and evaluation
+
+Every model implements `RaceModel` (`fit(dataset)` and `predict(dataset)` returning pace in
+s/km), so a formula, a linear model and a neural network are evaluated the same way.
+
+- `RiegelBaseline`: Riegel's formula `T2 = T1 * (D2 / D1) ** 1.06`, applied to the athlete's
+  fastest run of at least 5 km before the race.
+- `RidgeBaseline`, `GradientBoostingBaseline`: scikit-learn models on the tabular features.
+  They share the `TabularModel` base class, so a new model only has to say which estimator
+  it uses.
+
+Two protocols, because they answer different questions:
+
+- **chronological** (the thesis protocol): the latest 20 % of each athlete's races are held
+  out. Can the model predict an athlete's *next* race?
+- **grouped-CV**: 5-fold cross-validation that holds out whole athletes (`GroupKFold`). Does
+  it work for a runner it has never seen?
+
+```bash
+python -m race_predictor.evaluation.runner --data data
+```
+
+This writes [`docs/RESULTS_BASELINES.md`](docs/RESULTS_BASELINES.md). The numbers are
+regenerated on every run, but the hand-written conclusions are kept. In short: Riegel's formula
+is hard to beat. Ridge regression is better on athletes seen in training but much worse on new
+ones, and gradient boosting overfits the 160 races.
 
 ## Errors
 

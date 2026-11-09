@@ -12,6 +12,8 @@ dependencies = [
     "numpy>=1.26",
     "pandas>=2.1",
     "python-dateutil>=2.8",
+    "scikit-learn>=1.4",
+    "tabulate>=0.9",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +24,7 @@ dev = [
     "pytest-cov>=5",
     "ruff>=0.6",
     "types-python-dateutil>=2.8",
+    "types-tabulate>=0.9",
 ]
 
 [tool.setuptools.packages.find]
@@ -51,6 +54,10 @@ select = [
 [tool.mypy]
 strict = true
 files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["sklearn.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

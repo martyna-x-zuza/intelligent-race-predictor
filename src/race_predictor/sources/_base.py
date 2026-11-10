@@ -23,14 +23,14 @@ import pandas as pd
 from race_predictor.domain import Activity
 from race_predictor.exceptions import DataValidationError, UnsupportedExportFormatError
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 #: One row of an export, as produced by ``DataFrame.to_dict(orient="records")``.
 Row = Mapping[Hashable, Any]
 
 _REGISTRY: dict[str, type[ActivitySource]] = {}
 
-SourceT = TypeVar("SourceT", bound="type[ActivitySource]")
+_SourceT = TypeVar("_SourceT", bound="type[ActivitySource]")
 
 
 class ActivitySource(ABC):
@@ -43,14 +43,28 @@ class ActivitySource(ABC):
 
     @classmethod
     def can_read(cls, path: Path) -> bool:
-        """Cheap check, by sniffing the CSV header, whether ``path`` is in this format."""
-        return cls.required_columns.issubset(read_header(path))
+        """Check cheaply, by sniffing the CSV header, whether a file is in this format.
+
+        Args:
+            path: The file to check.
+
+        Returns:
+            ``True`` if the header has all :attr:`required_columns`.
+        """
+        return cls.required_columns.issubset(_read_header(path))
 
     def read(self, path: Path, athlete_id: str) -> Iterator[Activity]:
-        """Lazily yield the activities in ``path``, all attributed to ``athlete_id``.
+        """Lazily read the activities of one export file.
 
         Rows without a parseable date, or that violate a domain invariant (for example a
         negative distance), are skipped and counted in a warning instead of aborting the load.
+
+        Args:
+            path: The export file.
+            athlete_id: Id every activity is attributed to.
+
+        Yields:
+            One :class:`Activity` per readable row, in file order.
 
         Raises:
             UnsupportedExportFormatError: If ``path`` is not in this source's format.
@@ -68,29 +82,57 @@ class ActivitySource(ABC):
                 continue
             yield activity
         if skipped:
-            logger.warning("%s: skipped %d unreadable row(s)", path.name, skipped)
+            _logger.warning("%s: skipped %d unreadable row(s)", path.name, skipped)
 
     @abstractmethod
     def read_table(self, path: Path) -> pd.DataFrame:
-        """Read the raw export into a table with one row per activity."""
+        """Read the raw export.
+
+        Args:
+            path: The export file.
+
+        Returns:
+            The raw table, one row per activity.
+        """
 
     @abstractmethod
     def parse_row(self, row: Row, athlete_id: str) -> Activity | None:
-        """Convert one raw row; ``None`` if the row has no usable date.
+        """Convert one raw row to an activity in canonical units.
+
+        Args:
+            row: One row of :meth:`read_table`, as a column-to-value mapping.
+            athlete_id: Id the activity is attributed to.
+
+        Returns:
+            The activity, or ``None`` if the row has no usable date.
 
         Raises:
             DataValidationError: If the parsed values violate a domain invariant.
         """
 
 
-def register_source(name: str) -> Callable[[SourceT], SourceT]:
-    """Class decorator registering an :class:`ActivitySource` subclass under ``name``.
+def register_source(name: str) -> Callable[[_SourceT], _SourceT]:
+    """Build a class decorator that registers an :class:`ActivitySource` subclass.
+
+    Args:
+        name: Name to register the source under; also set as its ``name`` attribute.
+
+    Returns:
+        The decorator. It returns the class unchanged apart from ``name``.
 
     Raises:
-        ValueError: If another source is already registered under ``name``.
+        ValueError: When the decorator is applied and another class already has ``name``.
     """
 
-    def decorator(cls: SourceT) -> SourceT:
+    def decorator(cls: _SourceT) -> _SourceT:
+        """Register ``cls`` under the enclosing ``name``.
+
+        Args:
+            cls: The adapter class.
+
+        Returns:
+            The same class.
+        """
         if name in _REGISTRY and _REGISTRY[name] is not cls:
             raise ValueError(f"a source named {name!r} is already registered")
         cls.name = name
@@ -101,12 +143,22 @@ def register_source(name: str) -> Callable[[SourceT], SourceT]:
 
 
 def available_sources() -> list[str]:
-    """Names of all registered sources, sorted."""
+    """List the registered sources.
+
+    Returns:
+        Names of all registered sources, sorted.
+    """
     return sorted(_REGISTRY)
 
 
 def get_source(name: str) -> ActivitySource:
-    """Instantiate the source registered as ``name``.
+    """Instantiate a source by name.
+
+    Args:
+        name: Registry name, for example ``"strava"``.
+
+    Returns:
+        A new instance of the source.
 
     Raises:
         UnsupportedExportFormatError: If no source has that name.
@@ -120,7 +172,13 @@ def get_source(name: str) -> ActivitySource:
 
 
 def detect_source(path: str | Path) -> ActivitySource:
-    """Instantiate the registered source that recognises ``path``.
+    """Find the source that can read a file.
+
+    Args:
+        path: The export file.
+
+    Returns:
+        A new instance of the first registered source that recognises the file.
 
     Raises:
         UnsupportedExportFormatError: If no registered source can read ``path``.
@@ -134,8 +192,15 @@ def detect_source(path: str | Path) -> ActivitySource:
     )
 
 
-def read_header(path: Path) -> list[str]:
-    """Column names of the CSV file ``path``; empty if it cannot be read as CSV."""
+def _read_header(path: Path) -> list[str]:
+    """Read the column names of a CSV file.
+
+    Args:
+        path: The file to read.
+
+    Returns:
+        The column names; empty if the file is missing or cannot be read as CSV.
+    """
     try:
         return [str(column) for column in pd.read_csv(path, nrows=0).columns]
     except (OSError, UnicodeDecodeError, ValueError):

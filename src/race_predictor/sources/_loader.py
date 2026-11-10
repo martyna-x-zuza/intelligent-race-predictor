@@ -12,9 +12,9 @@ import pandas as pd
 
 from race_predictor.domain import Activity, Athlete
 from race_predictor.exceptions import UnsupportedExportFormatError
-from race_predictor.sources.base import ActivitySource, detect_source
+from race_predictor.sources._base import ActivitySource, detect_source
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 #: Columns of the activity table: the source, then every :class:`Activity` field in order.
 COLUMNS: Final = ("source", *(f.name for f in fields(Activity)))
@@ -33,6 +33,9 @@ def load_athlete(
         athlete_id: Id given to the athlete; defaults to ``"<source>_<file stem>"``.
         source: Adapter to use; detected from the file header when omitted.
 
+    Returns:
+        The athlete with all readable activities of the file.
+
     Raises:
         UnsupportedExportFormatError: If ``source`` is omitted and no adapter recognises the file.
     """
@@ -43,28 +46,40 @@ def load_athlete(
 
 
 def iter_athletes(directory: str | Path) -> Iterator[Athlete]:
-    """Lazily load every CSV export in ``directory``, one athlete per file.
+    """Lazily load every CSV export in a directory, one athlete per file.
 
     Files are visited in name order and athletes are numbered ``"<source>_1"``,
     ``"<source>_2"``, ... in that order, so ids do not depend on (possibly personal) file names.
     Files in an unsupported format are skipped with a warning.
+
+    Args:
+        directory: Directory with the export files.
+
+    Yields:
+        One athlete per supported file.
     """
     index = 0
     for path in sorted(Path(directory).glob("*.csv")):
         try:
             source = detect_source(path)
         except UnsupportedExportFormatError:
-            logger.warning("skipping %s: not a supported export", path.name)
+            _logger.warning("skipping %s: not a supported export", path.name)
             continue
         index += 1
         yield load_athlete(path, f"{source.name}_{index}", source)
 
 
 def athletes_to_frame(athletes: Iterable[Athlete]) -> pd.DataFrame:
-    """Flatten athletes into one table with the canonical :data:`COLUMNS`.
+    """Flatten athletes into one activity table.
 
     Missing measurements become ``NaN`` and ``type`` holds the plain string value, so the
     table is ready for the cleaning and feature pipeline.
+
+    Args:
+        athletes: Athletes to flatten.
+
+    Returns:
+        One row per activity, with the canonical :data:`COLUMNS`.
     """
     records = [
         {"source": athlete.source, **asdict(activity)}

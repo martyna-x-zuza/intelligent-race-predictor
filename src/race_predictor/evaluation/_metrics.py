@@ -13,12 +13,18 @@ from race_predictor.exceptions import DataValidationError
 
 
 def evaluate(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> dict[str, float]:
-    """MAE, RMSE, NRMSE (RMSE over the range of ``y_true``), MAPE and median APE.
+    """Compute the regression metrics of a prediction.
 
-    Percentages are in the ``*_pct`` keys.
+    Args:
+        y_true: True values; all must be positive.
+        y_pred: Predicted values, same shape as ``y_true``.
+
+    Returns:
+        ``mae``, ``rmse``, ``nrmse_pct`` (RMSE over the range of ``y_true``), ``mape_pct`` and
+        ``median_ape_pct``; percentages are in the ``*_pct`` keys.
 
     Raises:
-        DataValidationError: If the arrays are empty, differ in length or ``y_true`` has a
+        DataValidationError: If the arrays are empty, differ in shape or ``y_true`` has a
             non-positive value (percentage errors are then undefined).
     """
     true, pred = np.asarray(y_true, dtype=float), np.asarray(y_pred, dtype=float)

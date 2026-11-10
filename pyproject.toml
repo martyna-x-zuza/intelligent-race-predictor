@@ -48,8 +48,17 @@ select = [
     "B",       # bugbear
     "C4",      # comprehensions
     "SIM",     # simplifications
+    "D",       # docstrings
+    "T20",     # no print() outside the command line interface
     "RUF",     # ruff-specific
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Test names describe the behaviour; docstrings are required in src/ only.
+"tests/**" = ["D"]
 
 [tool.mypy]
 strict = true

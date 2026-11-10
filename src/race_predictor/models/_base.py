@@ -5,8 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import ClassVar, Self
 
-from race_predictor.features import RaceDataset
-from race_predictor.features.dataset import FloatArray
+from race_predictor.features import FloatArray, RaceDataset
 
 
 class RaceModel(ABC):
@@ -21,11 +20,30 @@ class RaceModel(ABC):
 
     @abstractmethod
     def fit(self, ds: RaceDataset) -> Self:
-        """Fit on the races of ``ds`` and return ``self``."""
+        """Fit the model.
+
+        Args:
+            ds: Training races.
+
+        Returns:
+            The fitted model itself, so calls can be chained.
+        """
 
     @abstractmethod
     def predict(self, ds: RaceDataset) -> FloatArray:
-        """Predict the race pace in s/km of every race in ``ds``."""
+        """Predict race paces.
+
+        Args:
+            ds: Races to predict; their targets are not used.
+
+        Returns:
+            Predicted pace of every race, in s/km.
+        """
 
     def __repr__(self) -> str:
+        """Show the model by its class name.
+
+        Returns:
+            For example ``"RidgeBaseline()"``.
+        """
         return f"{type(self).__name__}()"

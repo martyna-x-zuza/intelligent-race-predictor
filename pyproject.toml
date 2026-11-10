@@ -37,10 +37,13 @@ where = ["src"]
 [tool.setuptools.package-data]
 race_predictor = ["py.typed"]
 
+# Every tool keeps its caches and outputs in its own directory under .artifacts/ (git-ignored).
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
+cache-dir = ".artifacts/ruff"
 
 [tool.ruff.lint]
 select = [
@@ -67,6 +70,7 @@ convention = "google"
 [tool.mypy]
 strict = true
 files = ["src", "tests"]
+cache_dir = ".artifacts/mypy"
 
 [[tool.mypy.overrides]]
 module = ["sklearn.*"]
@@ -74,4 +78,13 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers --cov=race_predictor --cov-report=term-missing"
+cache_dir = ".artifacts/pytest"
+addopts = """\
+    -ra --strict-markers \
+    --cov=race_predictor --cov-report=term-missing \
+    --cov-report=html:.artifacts/coverage/html \
+    --cov-report=xml:.artifacts/coverage/coverage.xml\
+"""
+
+[tool.coverage.run]
+data_file = ".artifacts/coverage/.coverage"

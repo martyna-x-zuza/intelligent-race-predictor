@@ -8,12 +8,8 @@ dist/
 # Environments
 .venv/
 
-# Tooling caches and reports
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.coverage
-htmlcov/
+# Caches and outputs of every tool (one sub-directory per tool, see pyproject.toml)
+.artifacts/
 
 # OS / editor
 .DS_Store

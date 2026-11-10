@@ -286,12 +286,16 @@ class MarkTriathlonRuns(Step):
         """Create the step.
 
         Args:
-            max_gap_hours: Longest gap between the end of the ride and the run, in hours.
+            max_gap_hours: Longest gap between the start of the ride and the start of the
+                run, in hours (the exports record start times only).
         """
         self._max_gap_hours = max_gap_hours
 
     def apply(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add ``is_triathlon``: 1 for a run within ``max_gap_hours`` after a ride, else 0.
+        """Add the ``is_triathlon`` flag.
+
+        A run gets 1 if the athlete's previous activity is a ride that started at most
+        ``max_gap_hours`` earlier, otherwise 0.
 
         Args:
             df: The activity table.

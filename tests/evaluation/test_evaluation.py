@@ -3,12 +3,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from race_predictor.evaluation import chronological_split, evaluate, grouped_splits
-from race_predictor.evaluation.runner import (
+from race_predictor.evaluation import (
+    EvaluationParams,
+    chronological_split,
     compare_models,
+    evaluate,
+    grouped_splits,
     load_dataset,
-    main,
     protocol_predictions,
+    run_baselines,
     write_report,
 )
 from race_predictor.exceptions import DataValidationError
@@ -90,10 +93,26 @@ def test_timer_measures_even_when_the_block_raises() -> None:
 
 @pytest.mark.skipif(not DATA.exists(), reason="sample exports not present")
 def test_baselines_on_the_sample_exports(tmp_path: Path) -> None:
-    assert len(load_dataset(DATA)) > 50
-    out = tmp_path / "results.md"
-    main(["--data", str(DATA), "--out", str(out)])
-    assert "| Riegel" in out.read_text()
+    report, artifacts = tmp_path / "report.md", tmp_path / "artifacts"
+    params = EvaluationParams(data_dir=DATA, models=("Riegel",))
+    table = run_baselines(params, report, artifacts)
+    assert table["model"].unique().tolist() == ["Riegel"]
+    assert "| Riegel" in report.read_text()
+    assert (artifacts / "results.csv").exists()
+    assert "races from 1" in report.read_text()  # 1xx races
+
+
+def test_load_dataset_uses_both_export_directories(tmp_path: Path) -> None:
+    for name in ("strava_activities", "garmin_activities"):
+        (tmp_path / name).mkdir()
+    with pytest.raises(DataValidationError, match="no race"):
+        load_dataset(tmp_path)  # no exports, so no races
+
+
+def test_run_baselines_rejects_unknown_models(tmp_path: Path) -> None:
+    params = EvaluationParams(data_dir=tmp_path, models=("Transformer",))
+    with pytest.raises(ValueError, match="unknown models"):
+        run_baselines(params, tmp_path / "report.md", tmp_path / "artifacts")
 
 
 def test_write_report_keeps_hand_written_conclusions(tmp_path: Path) -> None:

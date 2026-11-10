@@ -10,8 +10,8 @@ import pandas as pd
 from dateutil import parser as date_parser
 
 from race_predictor.domain import Activity, ActivityType
-from race_predictor.sources.base import ActivitySource, Row, register_source
-from race_predictor.sources.parsing import scale, to_elevation, to_float
+from race_predictor.sources._base import ActivitySource, Row, register_source
+from race_predictor.sources._parsing import scale, to_elevation, to_float
 
 _TYPE_MAP: Final = {
     "Run": ActivityType.RUN,
@@ -25,13 +25,16 @@ _TYPE_MAP: Final = {
 _KM: Final = 1000.0
 
 
-def parse_strava_date(value: object) -> datetime | None:
-    """Parse dates such as ``"Jul 17, 2021, 3:01:35 PM"`` or ``"4 Jul 2017, 07:52:56"``.
+def _parse_strava_date(value: object) -> datetime | None:
+    """Parse a Strava date such as ``"Jul 17, 2021, 3:01:35 PM"`` or ``"4 Jul 2017, 07:52:56"``.
 
     Strava formats dates according to the account's locale, so both orders occur in exports.
 
+    Args:
+        value: The ``Activity Date`` cell.
+
     Returns:
-        The parsed date, or ``None`` if ``value`` is not a date.
+        The parsed date, or ``None`` if the cell is not a date.
     """
     try:
         return date_parser.parse(str(value))
@@ -51,6 +54,14 @@ class StravaCsvSource(ActivitySource):
     )
 
     def read_table(self, path: Path) -> pd.DataFrame:
+        """Read the export, merging its duplicated maximum heart rate columns.
+
+        Args:
+            path: The ``activities.csv`` file.
+
+        Returns:
+            The raw table with every cell as a string.
+        """
         table = pd.read_csv(path, dtype=str)
         # The export repeats some column names; pandas suffixes the second copy with ".1".
         # The first "Max Heart Rate" is often empty while the second one is filled.
@@ -59,7 +70,16 @@ class StravaCsvSource(ActivitySource):
         return table
 
     def parse_row(self, row: Row, athlete_id: str) -> Activity | None:
-        date = parse_strava_date(row["Activity Date"])
+        """Convert one Strava row to canonical units.
+
+        Args:
+            row: One row of :meth:`read_table`.
+            athlete_id: Id the activity is attributed to.
+
+        Returns:
+            The activity, or ``None`` if the row has no parseable date.
+        """
+        date = _parse_strava_date(row["Activity Date"])
         if date is None:
             return None
         return Activity(

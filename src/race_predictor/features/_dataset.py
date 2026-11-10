@@ -67,13 +67,13 @@ AGGREGATES: Final = (
     "km_last_90d",
     "weekly_km",
 )
-#: The fastest run of at least this length is the Riegel formula's reference.
+#: Distance and time of the Riegel formula's reference run.
 RIEGEL_COLUMNS: Final = ("riegel_ref_distance_m", "riegel_ref_time_s")
 
-MIN_PACE_RUN_M: Final = 3_000.0  # shorter runs do not count towards the best training pace
-MIN_REFERENCE_RUN_M: Final = 5_000.0  # shortest run the Riegel formula projects from
-SHORT_WINDOW_DAYS: Final = 28
-LONG_WINDOW_DAYS: Final = 90
+_MIN_PACE_RUN_M: Final = 3_000.0  # shorter runs do not count towards the best training pace
+_MIN_REFERENCE_RUN_M: Final = 5_000.0  # shortest run the Riegel formula projects from
+_SHORT_WINDOW_DAYS: Final = 28
+_LONG_WINDOW_DAYS: Final = 90
 
 
 @dataclass(frozen=True)
@@ -98,17 +98,34 @@ class RaceDataset:
     tabular_columns = (*STATIC_NUMERIC, *STATIC_BINARY, *AGGREGATES)
 
     def __post_init__(self) -> None:
+        """Check that all parts describe the same number of races.
+
+        Raises:
+            DataValidationError: If the parts have different lengths.
+        """
         sizes = {len(self.seqs), len(self.static), len(self.y), len(self.meta)}
         if len(sizes) != 1:
             raise DataValidationError(f"inconsistent race counts: {sorted(sizes)}")
 
     def __len__(self) -> int:
+        """Count the races.
+
+        Returns:
+            The number of races.
+        """
         return len(self.y)
 
     def subset(
         self, index: Sequence[int] | npt.NDArray[np.integer] | npt.NDArray[np.bool_]
     ) -> RaceDataset:
-        """The races at integer positions ``index``, or where a boolean mask is ``True``."""
+        """Select some of the races.
+
+        Args:
+            index: Integer positions of the races, or a boolean mask over all races.
+
+        Returns:
+            A new dataset with only the selected races, in the order of ``index``.
+        """
         array = np.asarray(index)
         positions = np.flatnonzero(array) if array.dtype == bool else array.astype(np.intp)
         return RaceDataset(
@@ -120,24 +137,45 @@ class RaceDataset:
 
     @property
     def race_time_s(self) -> FloatArray:
-        """Race time in seconds, from the pace and the race distance."""
+        """Race times computed from the pace and the race distance.
+
+        Returns:
+            Race time of every race, in seconds.
+        """
         distance_km: FloatArray = self.meta["race_distance_m"].to_numpy(dtype=float) / 1000
         return self.y * distance_km
 
 
 def _total(frame: pd.DataFrame, column: str) -> float:
-    """Sum of ``column``; 0 when there are no values."""
+    """Sum a column, treating an empty or all-missing column as zero.
+
+    Args:
+        frame: The activities to sum over.
+        column: Column to sum.
+
+    Returns:
+        The sum, or 0.0 if there are no values.
+    """
     return float(frame[column].sum(min_count=1)) if frame[column].notna().any() else 0.0
 
 
 def _aggregates(
     window: pd.DataFrame, race_date: pd.Timestamp, days_window: int
 ) -> dict[str, float]:
-    """Hand-crafted summaries of the runs in ``window`` (see :data:`AGGREGATES`)."""
+    """Summarise the runs of a training window (see :data:`AGGREGATES`).
+
+    Args:
+        window: Runs before the race.
+        race_date: Date of the race.
+        days_window: Length of the window, in days (to compute weekly volume).
+
+    Returns:
+        One value per name in :data:`AGGREGATES`.
+    """
     pace = 1000.0 / window["avg_speed_ms"].replace(0, np.nan)
     km = window["distance_m"] / 1000.0
     age_days = (race_date - window["date"]).dt.days
-    long_enough = window["distance_m"] >= MIN_PACE_RUN_M
+    long_enough = window["distance_m"] >= _MIN_PACE_RUN_M
     return {
         "n_runs": float(len(window)),
         "total_km": float(km.sum()),
@@ -145,16 +183,24 @@ def _aggregates(
         "best_pace_s_km": float(pace[long_enough].min()) if long_enough.any() else np.nan,
         "longest_run_km": float(km.max()),
         "mean_hr": float(window["avg_hr"].mean()),
-        "km_last_28d": float(km[age_days <= SHORT_WINDOW_DAYS].sum()),
-        "km_last_90d": float(km[age_days <= LONG_WINDOW_DAYS].sum()),
+        "km_last_28d": float(km[age_days <= _SHORT_WINDOW_DAYS].sum()),
+        "km_last_90d": float(km[age_days <= _LONG_WINDOW_DAYS].sum()),
         "weekly_km": float(km.sum() / (days_window / 7)),
     }
 
 
 def _riegel_reference(window: pd.DataFrame) -> dict[str, float]:
-    """Distance and time of the fastest run of at least 5 km in ``window``; NaN if none."""
+    """Find the reference run for the Riegel formula: the fastest run of at least 5 km.
+
+    Args:
+        window: Runs before the race.
+
+    Returns:
+        Distance in metres and time in seconds of the reference run (:data:`RIEGEL_COLUMNS`);
+        ``NaN`` for both if the window has no such run.
+    """
     candidates = window[
-        (window["distance_m"] >= MIN_REFERENCE_RUN_M) & (window["avg_speed_ms"] > 0)
+        (window["distance_m"] >= _MIN_REFERENCE_RUN_M) & (window["avg_speed_ms"] > 0)
     ]
     if candidates.empty:
         return dict.fromkeys(RIEGEL_COLUMNS, np.nan)
@@ -167,7 +213,14 @@ def _riegel_reference(window: pd.DataFrame) -> dict[str, float]:
 
 
 def _years_of_experience(runs: pd.DataFrame) -> float:
-    """Years between the athlete's first and last run (0 with fewer than two runs)."""
+    """Measure how long an athlete has been running.
+
+    Args:
+        runs: All runs of the athlete.
+
+    Returns:
+        Years between the first and the last run; 0.0 with fewer than two runs.
+    """
     if len(runs) < 2:
         return 0.0
     return float((runs["date"].max() - runs["date"].min()).days / 365.0)
@@ -181,10 +234,21 @@ def _example(
     days_window: int,
     min_runs: int,
 ) -> tuple[dict[str, float], npt.NDArray[np.float32]] | None:
-    """Static features and run sequence of one race; ``None`` with too few earlier runs.
+    """Build the features of one race.
 
     Only activities strictly before the race date are used, so the race cannot leak into its
     own features.
+
+    Args:
+        activities: All activities of the athlete (source of the cross-training totals).
+        runs: The athlete's runs (source of the sequence and the run summaries).
+        race: The race row.
+        years_of_experience: Years the athlete has been running.
+        days_window: Length of the window before the race, in days.
+        min_runs: Fewest runs the window must have.
+
+    Returns:
+        ``(static features, run sequence)``, or ``None`` if the window has too few runs.
     """
     race_date: pd.Timestamp = race["date"]
     start = race_date - pd.Timedelta(days=days_window)
@@ -222,10 +286,18 @@ def _example(
 
 
 def build_race_dataset(df: pd.DataFrame, days_window: int = 365, min_runs: int = 3) -> RaceDataset:
-    """Build one example per race of a table cleaned by ``cleaning_pipeline("train")``.
+    """Build one example per race.
 
     Races without a time or distance, or with fewer than ``min_runs`` runs in the preceding
     ``days_window`` days, are left out.
+
+    Args:
+        df: Activity table cleaned by ``cleaning_pipeline("train")``.
+        days_window: Length of the window before each race, in days.
+        min_runs: Fewest runs a race's window must have.
+
+    Returns:
+        The dataset, with races ordered by athlete and date.
 
     Raises:
         DataValidationError: If no race qualifies.

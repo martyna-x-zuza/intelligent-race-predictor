@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from race_predictor.sources.parsing import parse_duration, scale, to_elevation, to_float
+from race_predictor.sources._parsing import parse_duration, scale, to_elevation, to_float
 
 
 @pytest.mark.parametrize(

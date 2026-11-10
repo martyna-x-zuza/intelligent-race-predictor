@@ -23,45 +23,90 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-| Task | Command |
-|---|---|
-| Run tests (with coverage) | `pytest` |
-| Lint | `ruff check .` |
-| Check formatting | `ruff format --check .` |
-| Type check (strict) | `mypy` |
+The [`justfile`](justfile) is the entry point of the repository: every task is a recipe, and
+[`just`](https://github.com/casey/just) is installed with the dev dependencies. Run `just` to list
+them.
 
-The same four checks run in GitHub Actions on Python 3.11 and 3.12 for every push to `main` and
-every pull request.
+| Recipe | What it does |
+|---|---|
+| `just check` | everything CI runs: `lint`, `typecheck` and `test` |
+| `just lint` | `ruff check` and `ruff format --check` |
+| `just typecheck` | `mypy` in strict mode over `src/` and `tests/` |
+| `just test` | `pytest` with coverage; extra arguments go to pytest (`just test -k sources`) |
+| `just format` | reformat and apply automatic lint fixes |
+| `just baselines` | evaluate the baselines (see below) |
+| `just clean` | delete `.artifacts/` |
+
+GitHub Actions runs the same recipes on Python 3.11 and 3.12 for every push to `main` and every
+pull request, then `just baselines` and uploads the coverage report and the baseline results as
+a build artifact.
+
+**Artifacts.** Every tool writes its caches and outputs to its own directory under the
+git-ignored `.artifacts/`, configured in `pyproject.toml`, so the repository root stays clean:
+
+```text
+.artifacts/
+├── ruff/        lint cache
+├── mypy/        type-check cache
+├── pytest/      test cache
+├── coverage/    coverage data, HTML and XML reports
+└── baselines/   params.json (the run's parameters) and results.csv (raw metrics)
+```
+
+**Code conventions.**
+
+- Each package's `__init__.py` is its public interface. Modules inside a package are private
+  (`_base.py`, `_dataset.py`, ...): code outside the package imports from the package, for example
+  `from race_predictor.features import RaceDataset`.
+- Inside a module, names used only there start with an underscore (`_read_header`,
+  `_MIN_REFERENCE_RUN_M`), and so do instance attributes holding internal state or settings.
+- Every function, public or private, has a Google-style docstring describing its parameters
+  (`Args:`) and result (`Returns:` / `Yields:`). ruff checks the public ones and
+  `tests/test_docstrings.py` checks all of them.
+
+## Command line
+
+The package installs one command, `race-predictor` (also `python -m race_predictor`), with one
+subcommand per action. The `just` recipes call it.
+
+```bash
+race-predictor baselines --data data --models Riegel Ridge --n-splits 5
+race-predictor --help
+```
 
 ## Project structure
 
 ```text
+justfile                 # entry point: just check, just baselines, ...
 src/race_predictor/
-├── exceptions.py       # RacePredictorError and its subclasses
+├── cli.py               # the race-predictor command
+├── exceptions.py        # RacePredictorError and its subclasses
+├── utils.py             # timer() context manager
 ├── domain/
-│   └── models.py       # Activity, ActivityType, Athlete, Race, RaceCategory
+│   └── _models.py       # Activity, ActivityType, Athlete, Race, RaceCategory
+├── sources/
+│   ├── _base.py         # ActivitySource adapter, registry, format detection
+│   ├── _parsing.py      # raw cell -> canonical number helpers
+│   ├── _strava.py       # Strava activities.csv adapter
+│   ├── _garmin.py       # Garmin Connect CSV adapter (Polish headers)
+│   └── _loader.py       # files -> Athlete objects -> DataFrame
 ├── processing/
-│   ├── pipeline.py     # Step, Pipeline and the cleaning steps
-│   ├── races.py        # race detection strategies
-│   ├── cleaning.py     # cleaning_pipeline("train" | "predict")
-│   └── windows.py      # leak-free training windows (generator)
+│   ├── _pipeline.py     # Step, Pipeline and the cleaning steps
+│   ├── _races.py        # race detection strategies
+│   ├── _cleaning.py     # cleaning_pipeline("train" | "predict")
+│   └── _windows.py      # leak-free training windows (generator)
 ├── features/
-│   └── dataset.py      # RaceDataset: one example per race
+│   └── _dataset.py      # RaceDataset: one example per race
 ├── models/
-│   ├── base.py         # RaceModel interface
-│   └── baselines.py    # Riegel formula, ridge regression, gradient boosting
-├── evaluation/
-│   ├── metrics.py      # MAE, RMSE, MAPE, median APE
-│   ├── splits.py       # chronological split and athlete-grouped CV
-│   └── runner.py       # model comparison, CLI that writes docs/RESULTS_BASELINES.md
-├── utils.py            # timer() context manager
-└── sources/
-    ├── base.py         # ActivitySource adapter, registry, format detection
-    ├── parsing.py      # raw cell -> canonical number helpers
-    ├── strava.py       # Strava activities.csv adapter
-    ├── garmin.py       # Garmin Connect CSV adapter (Polish headers)
-    └── loader.py       # files -> Athlete objects -> DataFrame
-tests/                  # mirrors the package layout
+│   ├── _base.py         # RaceModel interface
+│   └── _baselines.py    # Riegel formula, ridge regression, gradient boosting
+└── evaluation/
+    ├── _metrics.py      # MAE, RMSE, MAPE, median APE
+    ├── _splits.py       # chronological split and athlete-grouped CV
+    └── _runner.py       # model comparison, report and artifacts
+tests/                   # mirrors the package layout
+data/                    # Strava and Garmin sample exports from the thesis
+docs/                    # result reports
 ```
 
 ## Domain model
@@ -150,11 +195,12 @@ Two protocols, because they answer different questions:
   it work for a runner it has never seen?
 
 ```bash
-python -m race_predictor.evaluation.runner --data data
+just baselines
 ```
 
-This writes [`docs/RESULTS_BASELINES.md`](docs/RESULTS_BASELINES.md). The numbers are
-regenerated on every run, but the hand-written conclusions are kept. In short: Riegel's formula
+This writes the report [`docs/RESULTS_BASELINES.md`](docs/RESULTS_BASELINES.md) and saves the
+run's parameters (`params.json`) and raw metrics (`results.csv`) to `.artifacts/baselines/`. The
+numbers are regenerated on every run, but the hand-written conclusions are kept. In short: Riegel's formula
 is hard to beat. Ridge regression is better on athletes seen in training but much worse on new
 ones, and gradient boosting overfits the 160 races.
 

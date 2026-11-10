@@ -13,9 +13,8 @@ from sklearn.linear_model import Ridge
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from race_predictor.features import RaceDataset
-from race_predictor.features.dataset import FloatArray
-from race_predictor.models.base import RaceModel
+from race_predictor.features import FloatArray, RaceDataset
+from race_predictor.models._base import RaceModel
 
 #: Fatigue exponent of Riegel (1981).
 RIEGEL_EXPONENT: Final = 1.06
@@ -29,9 +28,18 @@ def riegel_time(
     target_distance_m: _Number,
     exponent: float = RIEGEL_EXPONENT,
 ) -> _Number:
-    """Riegel's formula ``T2 = T1 * (D2 / D1) ** exponent``.
+    """Predict a race time with Riegel's formula ``T2 = T1 * (D2 / D1) ** exponent``.
 
-    Works on floats, arrays or Series; the result has the type of the inputs.
+    Works on floats, arrays or Series; all three arguments must be of the same kind.
+
+    Args:
+        ref_time_s: Time of the reference performance, in seconds.
+        ref_distance_m: Distance of the reference performance, in metres.
+        target_distance_m: Distance to predict, in metres.
+        exponent: Fatigue exponent; 1.06 in Riegel's paper.
+
+    Returns:
+        Predicted time over ``target_distance_m``, in seconds, of the type of the inputs.
     """
     time_s: _Number = ref_time_s * (target_distance_m / ref_distance_m) ** exponent
     return time_s
@@ -46,21 +54,42 @@ class RiegelBaseline(RaceModel):
     name = "Riegel"
 
     def __init__(self, exponent: float = RIEGEL_EXPONENT) -> None:
-        self.exponent = exponent
+        """Create the model.
+
+        Args:
+            exponent: Fatigue exponent of the formula.
+        """
+        self._exponent = exponent
         self._fallback = np.nan
 
     def fit(self, ds: RaceDataset) -> Self:
+        """Remember the mean training pace as the fallback.
+
+        Args:
+            ds: Training races.
+
+        Returns:
+            The model itself.
+        """
         self._fallback = float(ds.y.mean())
         return self
 
     def predict(self, ds: RaceDataset) -> FloatArray:
+        """Project each race's reference run to the race distance.
+
+        Args:
+            ds: Races to predict.
+
+        Returns:
+            Predicted pace of every race in s/km; the fallback where there is no reference run.
+        """
         static = ds.static
         distance_m = static["race_distance_m"].to_numpy(dtype=float)
         time_s = riegel_time(
             static["riegel_ref_time_s"].to_numpy(dtype=float),
             static["riegel_ref_distance_m"].to_numpy(dtype=float),
             distance_m,
-            self.exponent,
+            self._exponent,
         )
         pace: FloatArray = time_s / (distance_m / 1000)
         return np.where(np.isnan(pace), self._fallback, pace)
@@ -74,25 +103,60 @@ class TabularModel(RaceModel):
     """
 
     def __init__(self) -> None:
+        """Create an unfitted model."""
         self._estimator: Any = None  # scikit-learn has no type hints
         self._empty_columns = np.zeros(len(RaceDataset.tabular_columns), dtype=bool)
 
     def make_estimator(self) -> Any:
-        """A fresh, unfitted scikit-learn regressor."""
+        """Create the regressor to fit.
+
+        Returns:
+            A fresh, unfitted scikit-learn regressor.
+
+        Raises:
+            NotImplementedError: In this base class; subclasses override it.
+        """
         raise NotImplementedError
 
     def _features(self, ds: RaceDataset) -> FloatArray:
+        """Build the feature matrix, zeroing the columns that were empty in training.
+
+        Args:
+            ds: Races to build features for.
+
+        Returns:
+            Matrix of shape ``(len(ds), len(tabular_columns))``.
+        """
         features = ds.static[list(ds.tabular_columns)].to_numpy(dtype=float, copy=True)
         features[:, self._empty_columns] = 0.0
         return features
 
     def fit(self, ds: RaceDataset) -> Self:
+        """Fit a fresh estimator on the tabular features.
+
+        Args:
+            ds: Training races.
+
+        Returns:
+            The model itself.
+        """
         raw = ds.static[list(ds.tabular_columns)].to_numpy(dtype=float)
         self._empty_columns = np.isnan(raw).all(axis=0)
         self._estimator = self.make_estimator().fit(self._features(ds), ds.y)
         return self
 
     def predict(self, ds: RaceDataset) -> FloatArray:
+        """Predict race paces with the fitted estimator.
+
+        Args:
+            ds: Races to predict.
+
+        Returns:
+            Predicted pace of every race, in s/km.
+
+        Raises:
+            RuntimeError: If the model has not been fitted.
+        """
         if self._estimator is None:
             raise RuntimeError(f"{self.name} must be fitted before predicting")
         return np.asarray(self._estimator.predict(self._features(ds)), dtype=float)
@@ -104,11 +168,21 @@ class RidgeBaseline(TabularModel):
     name: ClassVar[str] = "Ridge"
 
     def __init__(self, alpha: float = 10.0) -> None:
+        """Create the model.
+
+        Args:
+            alpha: L2 penalty of the ridge regression.
+        """
         super().__init__()
-        self.alpha = alpha
+        self._alpha = alpha
 
     def make_estimator(self) -> Any:
-        return make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), Ridge(self.alpha))
+        """Create the imputer, scaler and ridge regression chain.
+
+        Returns:
+            An unfitted scikit-learn pipeline.
+        """
+        return make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), Ridge(self._alpha))
 
 
 class GradientBoostingBaseline(TabularModel):
@@ -123,8 +197,16 @@ class GradientBoostingBaseline(TabularModel):
         max_leaf_nodes: int = 8,
         min_samples_leaf: int = 5,
     ) -> None:
+        """Create the model.
+
+        Args:
+            learning_rate: Shrinkage of every boosting step.
+            max_iter: Number of boosting iterations.
+            max_leaf_nodes: Largest number of leaves per tree.
+            min_samples_leaf: Fewest training races per leaf.
+        """
         super().__init__()
-        self.params: dict[str, float | int] = {
+        self._params: dict[str, float | int] = {
             "learning_rate": learning_rate,
             "max_iter": max_iter,
             "max_leaf_nodes": max_leaf_nodes,
@@ -132,4 +214,9 @@ class GradientBoostingBaseline(TabularModel):
         }
 
     def make_estimator(self) -> Any:
-        return HistGradientBoostingRegressor(random_state=0, **self.params)
+        """Create the gradient boosting regressor.
+
+        Returns:
+            An unfitted ``HistGradientBoostingRegressor`` with a fixed random seed.
+        """
+        return HistGradientBoostingRegressor(random_state=0, **self._params)

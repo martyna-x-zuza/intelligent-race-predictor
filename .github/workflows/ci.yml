@@ -18,13 +18,23 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+      # `just` comes with the dev dependencies, so CI runs the same recipes as a developer.
       - name: Install
         run: pip install -e ".[dev]"
       - name: Lint
-        run: ruff check .
-      - name: Format
-        run: ruff format --check .
+        run: just lint
       - name: Type check
-        run: mypy
+        run: just typecheck
       - name: Test
-        run: pytest
+        run: just test
+      - name: Baselines
+        if: matrix.python-version == '3.12'
+        run: just baselines --report .artifacts/baselines/RESULTS_BASELINES.md
+      - name: Upload artifacts
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: |
+            .artifacts/coverage/
+            .artifacts/baselines/

@@ -83,7 +83,7 @@ src/race_predictor/
 ├── exceptions.py        # RacePredictorError and its subclasses
 ├── utils.py             # timer() context manager
 ├── domain/
-│   └── models.py        # Activity, ActivityType, Athlete, Race, RaceCategory
+│   └── _models.py       # Activity, ActivityType, Athlete, Race, RaceCategory
 ├── sources/
 │   ├── _base.py         # ActivitySource adapter, registry, format detection
 │   ├── _parsing.py      # raw cell -> canonical number helpers

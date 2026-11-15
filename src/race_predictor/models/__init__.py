@@ -1,7 +1,10 @@
-"""Race-time models."""
+"""Race-time models.
 
-from race_predictor.models.base import RaceModel
-from race_predictor.models.baselines import (
+This is the public interface of the package; its modules are internal.
+"""
+
+from race_predictor.models._base import RaceModel
+from race_predictor.models._baselines import (
     RIEGEL_EXPONENT,
     GradientBoostingBaseline,
     RidgeBaseline,

@@ -5,7 +5,7 @@ import pytest
 
 from race_predictor.domain import ActivityType
 from race_predictor.sources import GarminCsvSource
-from race_predictor.sources.garmin import parse_garmin_date, speed_to_ms
+from race_predictor.sources._garmin import _parse_garmin_date, _speed_to_ms
 from tests.sources.conftest import GARMIN_HEADER, WriteCsv
 
 
@@ -19,17 +19,17 @@ from tests.sources.conftest import GARMIN_HEADER, WriteCsv
     ],
 )
 def test_speed_to_ms(value: str, activity_type: ActivityType, expected: float) -> None:
-    assert speed_to_ms(value, activity_type) == pytest.approx(expected)
+    assert _speed_to_ms(value, activity_type) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize("value", ["--", "0:00", None])
 def test_speed_to_ms_returns_none_for_missing_or_zero_pace(value: object) -> None:
-    assert speed_to_ms(value, ActivityType.RUN) is None
+    assert _speed_to_ms(value, ActivityType.RUN) is None
 
 
 def test_parse_garmin_date() -> None:
-    assert parse_garmin_date("2025-09-19 21:33:31") == datetime(2025, 9, 19, 21, 33, 31)
-    assert parse_garmin_date("--") is None
+    assert _parse_garmin_date("2025-09-19 21:33:31") == datetime(2025, 9, 19, 21, 33, 31)
+    assert _parse_garmin_date("--") is None
 
 
 def test_reads_a_run_in_canonical_units(garmin_file: Path) -> None:

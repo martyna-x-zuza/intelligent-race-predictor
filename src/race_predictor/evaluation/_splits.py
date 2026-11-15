@@ -20,9 +20,19 @@ Index = npt.NDArray[np.intp]
 
 
 def chronological_split(ds: RaceDataset, test_fraction: float = 0.2) -> tuple[Index, Index]:
-    """``(train, test)`` positions: the latest ``test_fraction`` of each athlete's races.
+    """Hold out the latest races of every athlete.
 
     Every athlete contributes at least one test race.
+
+    Args:
+        ds: All races.
+        test_fraction: Share of each athlete's races, latest first, that goes to the test set.
+
+    Returns:
+        ``(train, test)`` positions into ``ds``.
+
+    Raises:
+        ValueError: If ``test_fraction`` is not strictly between 0 and 1.
     """
     if not 0 < test_fraction < 1:
         raise ValueError(f"test_fraction must be in (0, 1), got {test_fraction}")
@@ -35,9 +45,16 @@ def chronological_split(ds: RaceDataset, test_fraction: float = 0.2) -> tuple[In
 
 
 def grouped_splits(ds: RaceDataset, n_splits: int = 5) -> Iterator[tuple[Index, Index]]:
-    """Lazily yield ``(train, test)`` positions of folds that keep each athlete in one fold.
+    """Lazily split the races into folds that keep each athlete in a single fold.
 
     Uses fewer folds when there are fewer than ``n_splits`` athletes.
+
+    Args:
+        ds: All races.
+        n_splits: Number of folds.
+
+    Yields:
+        ``(train, test)`` positions into ``ds`` for each fold.
     """
     groups = ds.meta["athlete_id"].to_numpy()
     folds = GroupKFold(n_splits=min(n_splits, len(set(groups))))

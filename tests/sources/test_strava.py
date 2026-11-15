@@ -5,7 +5,7 @@ import pytest
 
 from race_predictor.domain import ActivityType
 from race_predictor.sources import StravaCsvSource
-from race_predictor.sources.strava import parse_strava_date
+from race_predictor.sources._strava import _parse_strava_date
 from tests.sources.conftest import STRAVA_HEADER, WriteCsv
 
 
@@ -17,12 +17,12 @@ from tests.sources.conftest import STRAVA_HEADER, WriteCsv
     ],
 )
 def test_parse_strava_date_handles_both_locales(text: str, expected: datetime) -> None:
-    assert parse_strava_date(text) == expected
+    assert _parse_strava_date(text) == expected
 
 
 @pytest.mark.parametrize("value", ["not a date", "", None])
 def test_parse_strava_date_returns_none_for_invalid_values(value: object) -> None:
-    assert parse_strava_date(value) is None
+    assert _parse_strava_date(value) is None
 
 
 def test_reads_a_run_in_canonical_units(strava_file: Path) -> None:

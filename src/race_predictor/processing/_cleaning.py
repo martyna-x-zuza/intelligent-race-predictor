@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from race_predictor.processing.pipeline import (
+from race_predictor.processing._pipeline import (
     DropAthletesWithoutHR,
     DropTriathlonRaces,
     EstimateHRMax,
@@ -29,13 +29,17 @@ from race_predictor.processing.pipeline import (
     ValidateHeartRate,
     ValidateMaxHeartRate,
 )
-from race_predictor.processing.races import DetectRaces, RaceDetector
+from race_predictor.processing._races import DetectRaces, RaceDetector
 
 Purpose = Literal["train", "predict"]
 
 
-def shared_steps() -> list[Step]:
-    """Steps applied to every dataset, for training and prediction alike."""
+def _shared_steps() -> list[Step]:
+    """Build the steps applied to every dataset, for training and prediction alike.
+
+    Returns:
+        New step instances, in order.
+    """
     return [RemoveAnomalies(), RemoveImplausiblyFastRuns(), ValidateMaxHeartRate()]
 
 
@@ -45,12 +49,15 @@ def cleaning_pipeline(
     *,
     include_triathlon_races: bool = False,
 ) -> Pipeline:
-    """Build the cleaning chain for ``purpose``.
+    """Build the cleaning chain for training or for prediction.
 
     Args:
         purpose: ``"train"`` or ``"predict"`` (see the module docstring).
         detector: Race detection strategy; :class:`HeuristicRaceDetector` by default.
         include_triathlon_races: Keep runs after a ride as races (thesis behaviour).
+
+    Returns:
+        The pipeline, ready to :meth:`~Pipeline.run`.
 
     Raises:
         ValueError: If ``purpose`` is not ``"train"`` or ``"predict"``.
@@ -62,6 +69,6 @@ def cleaning_pipeline(
         labelling.append(DropTriathlonRaces())
     if purpose == "predict":
         return Pipeline(
-            [*shared_steps(), ValidateHeartRate(keep_missing=True), *labelling, ImputeMissing()]
+            [*_shared_steps(), ValidateHeartRate(keep_missing=True), *labelling, ImputeMissing()]
         )
-    return Pipeline([*shared_steps(), ValidateHeartRate(), DropAthletesWithoutHR(), *labelling])
+    return Pipeline([*_shared_steps(), ValidateHeartRate(), DropAthletesWithoutHR(), *labelling])

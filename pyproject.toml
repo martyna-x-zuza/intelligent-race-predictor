@@ -23,9 +23,13 @@ dev = [
     "pytest>=8",
     "pytest-cov>=5",
     "ruff>=0.6",
+    "rust-just>=1.30",
     "types-python-dateutil>=2.8",
     "types-tabulate>=0.9",
 ]
+
+[project.scripts]
+race-predictor = "race_predictor.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -33,10 +37,13 @@ where = ["src"]
 [tool.setuptools.package-data]
 race_predictor = ["py.typed"]
 
+# Every tool keeps its caches and outputs in its own directory under .artifacts/ (git-ignored).
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
+cache-dir = ".artifacts/ruff"
 
 [tool.ruff.lint]
 select = [
@@ -48,12 +55,22 @@ select = [
     "B",       # bugbear
     "C4",      # comprehensions
     "SIM",     # simplifications
+    "D",       # docstrings
+    "T20",     # no print() outside the command line interface
     "RUF",     # ruff-specific
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Test names describe the behaviour; docstrings are required in src/ only.
+"tests/**" = ["D"]
 
 [tool.mypy]
 strict = true
 files = ["src", "tests"]
+cache_dir = ".artifacts/mypy"
 
 [[tool.mypy.overrides]]
 module = ["sklearn.*"]
@@ -61,4 +78,13 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers --cov=race_predictor --cov-report=term-missing"
+cache_dir = ".artifacts/pytest"
+addopts = """\
+    -ra --strict-markers \
+    --cov=race_predictor --cov-report=term-missing \
+    --cov-report=html:.artifacts/coverage/html \
+    --cov-report=xml:.artifacts/coverage/coverage.xml\
+"""
+
+[tool.coverage.run]
+data_file = ".artifacts/coverage/.coverage"

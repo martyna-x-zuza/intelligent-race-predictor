@@ -7,13 +7,13 @@ from race_predictor.processing import (
     RaceDetector,
     StandardDistanceDetector,
 )
-from race_predictor.processing.races import is_standard_distance
+from race_predictor.processing._races import _is_standard_distance
 from tests.conftest import Days, Frame
 
 
 def test_is_standard_distance() -> None:
     distances = pd.Series([5100.0, 7000.0, 21_000.0, 42_500.0, 46_500.0])
-    assert is_standard_distance(distances).tolist() == [True, False, True, True, False]
+    assert _is_standard_distance(distances).tolist() == [True, False, True, True, False]
 
 
 def test_standard_distance_detector(frame: Frame, days: Days) -> None:

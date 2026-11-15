@@ -16,7 +16,7 @@ from race_predictor.sources import (
     get_source,
     register_source,
 )
-from race_predictor.sources.base import _REGISTRY, ActivitySource, Row, read_header
+from race_predictor.sources._base import _REGISTRY, ActivitySource, Row, _read_header
 from tests.sources.conftest import WriteCsv
 
 
@@ -79,10 +79,10 @@ def test_detect_source_rejects_unknown_formats(write_csv: WriteCsv) -> None:
 
 
 def test_read_header_of_unreadable_files(tmp_path: Path) -> None:
-    assert read_header(tmp_path / "missing.csv") == []
+    assert _read_header(tmp_path / "missing.csv") == []
     binary = tmp_path / "binary.csv"
     binary.write_bytes(b"\xff\xfe\x00\x81")
-    assert read_header(binary) == []
+    assert _read_header(binary) == []
 
 
 def test_read_rejects_a_file_in_another_format(garmin_file: Path) -> None:

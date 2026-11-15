@@ -39,11 +39,15 @@ class RaceCategory(StrEnum):
 
     @classmethod
     def from_distance(cls, distance_m: float, tolerance: float = 0.1) -> RaceCategory:
-        """Classify ``distance_m``; ``OTHER`` if no standard distance is within ``tolerance``.
+        """Classify a distance as the standard race distance it is closest to.
 
         Args:
             distance_m: Distance covered, in metres.
             tolerance: Allowed relative deviation from the standard distance (0.1 = 10 %).
+
+        Returns:
+            The matching category, or ``OTHER`` if no standard distance is within
+            ``tolerance``.
         """
         for category, standard_m in STANDARD_DISTANCES_M.items():
             if abs(distance_m - standard_m) <= tolerance * standard_m:
@@ -92,6 +96,11 @@ class Activity:
     avg_temp_c: float | None = None
 
     def __post_init__(self) -> None:
+        """Check the structural invariants of the activity.
+
+        Raises:
+            DataValidationError: If ``athlete_id`` is empty or a quantity is negative.
+        """
         if not self.athlete_id:
             raise DataValidationError("athlete_id must not be empty")
         for name in _NON_NEGATIVE_FIELDS:
@@ -101,12 +110,20 @@ class Activity:
 
     @property
     def distance_km(self) -> float | None:
-        """Distance in kilometres, if known."""
+        """Distance in kilometres.
+
+        Returns:
+            The distance in km, or ``None`` if it is unknown.
+        """
         return None if self.distance_m is None else self.distance_m / 1000
 
     @property
     def pace_s_per_km(self) -> float | None:
-        """Average moving pace in seconds per kilometre, if it can be computed."""
+        """Average moving pace.
+
+        Returns:
+            Pace in seconds per km, or ``None`` without a positive distance and a moving time.
+        """
         if not self.distance_m or self.moving_s is None:
             return None
         return self.moving_s / (self.distance_m / 1000)
@@ -120,6 +137,11 @@ class Race:
     category: RaceCategory
 
     def __post_init__(self) -> None:
+        """Check that the race is a run with a distance.
+
+        Raises:
+            DataValidationError: If the activity is not a run or has no positive distance.
+        """
         if self.activity.type is not ActivityType.RUN:
             raise DataValidationError(f"a race must be a run, got {self.activity.type}")
         if not self.activity.distance_m:
@@ -127,14 +149,29 @@ class Race:
 
     @classmethod
     def from_activity(cls, activity: Activity, tolerance: float = 0.1) -> Race:
-        """Build a race, deriving the category from the activity's distance."""
+        """Build a race, deriving the category from the activity's distance.
+
+        Args:
+            activity: The raced run.
+            tolerance: Allowed relative deviation from a standard distance.
+
+        Returns:
+            The race with its :class:`RaceCategory`.
+
+        Raises:
+            DataValidationError: If the activity has no distance or is not a run.
+        """
         if activity.distance_m is None:
             raise DataValidationError("a race needs a distance")
         return cls(activity, RaceCategory.from_distance(activity.distance_m, tolerance))
 
     @property
     def time_s(self) -> float | None:
-        """Race time in seconds: moving time, falling back to elapsed time."""
+        """Race time: the moving time, falling back to the elapsed time.
+
+        Returns:
+            Race time in seconds, or ``None`` if neither time is known.
+        """
         if self.activity.moving_s is not None:
             return self.activity.moving_s
         return self.activity.elapsed_s
@@ -149,30 +186,58 @@ class Athlete:
     activities: list[Activity] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        """Check the id and that every activity belongs to this athlete.
+
+        Raises:
+            DataValidationError: If the id is empty or an activity belongs to someone else.
+        """
         if not self.id:
             raise DataValidationError("athlete id must not be empty")
         for activity in self.activities:
             self._check_ownership(activity)
 
     def _check_ownership(self, activity: Activity) -> None:
+        """Check that an activity belongs to this athlete.
+
+        Args:
+            activity: The activity to check.
+
+        Raises:
+            DataValidationError: If the activity's ``athlete_id`` is not this athlete's id.
+        """
         if activity.athlete_id != self.id:
             raise DataValidationError(
                 f"activity belongs to {activity.athlete_id!r}, not to athlete {self.id!r}"
             )
 
     def add_activity(self, activity: Activity) -> None:
-        """Append an activity; it must belong to this athlete."""
+        """Append an activity.
+
+        Args:
+            activity: The activity; it must belong to this athlete.
+
+        Raises:
+            DataValidationError: If the activity belongs to another athlete.
+        """
         self._check_ownership(activity)
         self.activities.append(activity)
 
     def runs(self) -> list[Activity]:
-        """Runs only, oldest first."""
+        """Select the athlete's runs.
+
+        Returns:
+            The runs only, oldest first.
+        """
         return sorted(
             (a for a in self.activities if a.type is ActivityType.RUN), key=lambda a: a.date
         )
 
     @property
     def hr_max(self) -> float | None:
-        """Highest maximum heart rate ever recorded, used as an estimate of HRmax."""
+        """Estimate the athlete's maximum heart rate.
+
+        Returns:
+            Highest maximum heart rate ever recorded, in bpm, or ``None`` without readings.
+        """
         recorded = [a.max_hr for a in self.activities if a.max_hr is not None]
         return max(recorded) if recorded else None

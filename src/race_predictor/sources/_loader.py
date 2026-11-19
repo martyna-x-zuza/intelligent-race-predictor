@@ -1,26 +1,46 @@
 """Load export files into :class:`~race_predictor.domain.Athlete` objects and DataFrames."""
 
-from __future__ import annotations
-
 import logging
 from collections.abc import Iterable, Iterator
 from dataclasses import asdict, fields
 from pathlib import Path
-from typing import Final
 
 import pandas as pd
 
 from race_predictor.domain import Activity, Athlete
 from race_predictor.exceptions import UnsupportedExportFormatError
-from race_predictor.sources._base import ActivitySource, detect_source
+from race_predictor.sources._base import ActivitySource
+from race_predictor.sources._garmin import GarminCsvSource
+from race_predictor.sources._strava import StravaCsvSource
 
 _logger = logging.getLogger(__name__)
 
-#: Columns of the activity table: the source, then every :class:`Activity` field in order.
-COLUMNS: Final = ("source", *(f.name for f in fields(Activity)))
-_NUMERIC_COLUMNS: Final = tuple(
-    c for c in COLUMNS if c not in {"source", "athlete_id", "date", "type"}
-)
+_SOURCES: tuple[type[ActivitySource], ...] = (StravaCsvSource, GarminCsvSource)
+
+COLUMNS = ("source", *(f.name for f in fields(Activity)))
+_NUMERIC_COLUMNS = tuple(c for c in COLUMNS if c not in {"source", "athlete_id", "date", "type"})
+
+
+def detect_source(path: str | Path) -> ActivitySource:
+    """Find the source that can read a file.
+
+    Args:
+        path: The export file.
+
+    Returns:
+        A new instance of the first source that recognises the file.
+
+    Raises:
+        UnsupportedExportFormatError: If no source can read ``path``.
+    """
+    path = Path(path)
+    for source in _SOURCES:
+        if source.can_read(path):
+            return source()
+    known = [source.name for source in _SOURCES]
+    raise UnsupportedExportFormatError(
+        f"{path.name} is not a supported export (known formats: {known})"
+    )
 
 
 def load_athlete(

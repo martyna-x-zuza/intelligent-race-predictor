@@ -4,7 +4,7 @@ The median absolute percentage error is reported next to the mean: a few badly p
 races pull the mean far above the typical error.
 """
 
-from __future__ import annotations
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -12,7 +12,26 @@ import numpy.typing as npt
 from race_predictor.exceptions import DataValidationError
 
 
-def evaluate(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> dict[str, float]:
+@dataclass(frozen=True)
+class Metrics:
+    """Regression metrics of a prediction.
+
+    Attributes:
+        mae: Mean absolute error.
+        rmse: Root mean squared error.
+        nrmse_pct: RMSE as a percentage of the range of the true values.
+        mape_pct: Mean absolute percentage error.
+        median_ape_pct: Median absolute percentage error.
+    """
+
+    mae: float
+    rmse: float
+    nrmse_pct: float
+    mape_pct: float
+    median_ape_pct: float
+
+
+def evaluate(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> Metrics:
     """Compute the regression metrics of a prediction.
 
     Args:
@@ -20,8 +39,7 @@ def evaluate(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> dict[str, float]:
         y_pred: Predicted values, same shape as ``y_true``.
 
     Returns:
-        ``mae``, ``rmse``, ``nrmse_pct`` (RMSE over the range of ``y_true``), ``mape_pct`` and
-        ``median_ape_pct``; percentages are in the ``*_pct`` keys.
+        The metrics of ``y_pred`` against ``y_true``.
 
     Raises:
         DataValidationError: If the arrays are empty, differ in shape or ``y_true`` has a
@@ -36,10 +54,10 @@ def evaluate(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> dict[str, float]:
     rmse = float(np.sqrt(np.mean(error**2)))
     span = float(true.max() - true.min()) or 1.0
     ape = np.abs(error) / true
-    return {
-        "mae": float(np.mean(np.abs(error))),
-        "rmse": rmse,
-        "nrmse_pct": 100 * rmse / span,
-        "mape_pct": float(100 * np.mean(ape)),
-        "median_ape_pct": float(100 * np.median(ape)),
-    }
+    return Metrics(
+        mae=float(np.mean(np.abs(error))),
+        rmse=rmse,
+        nrmse_pct=100 * rmse / span,
+        mape_pct=float(100 * np.mean(ape)),
+        median_ape_pct=float(100 * np.median(ape)),
+    )

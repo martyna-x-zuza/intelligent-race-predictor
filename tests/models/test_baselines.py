@@ -18,7 +18,7 @@ def make_dataset(n: int = 40, seed: int = 0) -> RaceDataset:
     """Synthetic races whose pace depends on weekly volume, with a Riegel reference run."""
     rng = np.random.default_rng(seed)
     weekly_km = rng.uniform(10, 80, n)
-    distance_m = rng.choice([5000.0, 10_000.0, 21_097.5], n)
+    distance_m = rng.choice([5_000.0, 10_000.0, 21_097.5], n)
     pace = 360 - 1.5 * weekly_km + rng.normal(0, 3, n)
     static = pd.DataFrame(
         {column: rng.normal(size=n) for column in RaceDataset.tabular_columns}
@@ -26,7 +26,7 @@ def make_dataset(n: int = 40, seed: int = 0) -> RaceDataset:
         weekly_km=weekly_km,
         race_distance_m=distance_m,
         swim_t_total=np.nan,  # a column missing for every race
-        riegel_ref_distance_m=5000.0,
+        riegel_ref_distance_m=5_000.0,
         riegel_ref_time_s=pace * 5 * 0.97,
     )
     meta = pd.DataFrame(
@@ -41,18 +41,18 @@ def make_dataset(n: int = 40, seed: int = 0) -> RaceDataset:
 
 
 def test_riegel_time_of_the_same_distance_is_unchanged() -> None:
-    assert riegel_time(1200.0, 5000.0, 5000.0) == pytest.approx(1200.0)
+    assert riegel_time(1_200.0, 5_000.0, 5_000.0) == pytest.approx(1_200.0)
 
 
 def test_riegel_time_marathon_from_half() -> None:
     # 1:30 half marathon -> about 3:08 marathon with the 1.06 exponent.
-    assert riegel_time(5400.0, 21_097.5, 42_195.0) / 3600 == pytest.approx(3.13, abs=0.01)
+    assert riegel_time(5_400.0, 21_097.5, 42_195.0) / 3_600 == pytest.approx(3.13, abs=0.01)
 
 
 def test_riegel_time_works_on_arrays() -> None:
-    times = riegel_time(np.array([1200.0, 1500.0]), np.full(2, 5000.0), np.full(2, 10_000.0))
+    times = riegel_time(np.array([1_200.0, 1_500.0]), np.full(2, 5_000.0), np.full(2, 10_000.0))
     assert times.shape == (2,)
-    assert (times > 2 * np.array([1200.0, 1500.0])).all()  # longer races are slower per km
+    assert (times > 2 * np.array([1_200.0, 1_500.0])).all()  # longer races are slower per km
 
 
 def test_riegel_baseline_projects_the_reference_run() -> None:
@@ -60,9 +60,9 @@ def test_riegel_baseline_projects_the_reference_run() -> None:
     pace = RiegelBaseline().fit(ds).predict(ds)
     expected = riegel_time(
         ds.static["riegel_ref_time_s"].to_numpy(dtype=float),
-        np.full(len(ds), 5000.0),
+        np.full(len(ds), 5_000.0),
         ds.static["race_distance_m"].to_numpy(dtype=float),
-    ) / (ds.static["race_distance_m"].to_numpy(dtype=float) / 1000)
+    ) / (ds.static["race_distance_m"].to_numpy(dtype=float) / 1_000)
     np.testing.assert_allclose(pace, expected)
 
 

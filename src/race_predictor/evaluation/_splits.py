@@ -6,8 +6,6 @@
   how well a model generalises to a runner it has never seen.
 """
 
-from __future__ import annotations
-
 from collections.abc import Iterator
 
 import numpy as np

@@ -85,11 +85,11 @@ src/race_predictor/
 ├── domain/
 │   └── _models.py       # Activity, ActivityType, Athlete, Race, RaceCategory
 ├── sources/
-│   ├── _base.py         # ActivitySource adapter, registry, format detection
+│   ├── _base.py         # ActivitySource adapter base class
 │   ├── _parsing.py      # raw cell -> canonical number helpers
 │   ├── _strava.py       # Strava activities.csv adapter
 │   ├── _garmin.py       # Garmin Connect CSV adapter (Polish headers)
-│   └── _loader.py       # files -> Athlete objects -> DataFrame
+│   └── _loader.py       # format detection, files -> Athlete objects -> DataFrame
 ├── processing/
 │   ├── _pipeline.py     # Step, Pipeline and the cleaning steps
 │   ├── _races.py        # race detection strategies
@@ -113,7 +113,7 @@ docs/                    # result reports
 
 All quantities use canonical units (metres, seconds, m/s, bpm, °C); a missing measurement is `None`.
 
-- `Activity`: immutable record of one activity (`frozen`, `slots`); rejects negative quantities.
+- `Activity`: immutable record of one activity (`frozen`); rejects negative quantities.
 - `Athlete`: an athlete and their activities; guarantees every activity belongs to them and
   exposes `runs()` and an estimated `hr_max`.
 - `Race`: a run together with its `RaceCategory` (5k, 10k, half marathon, marathon or other).
@@ -123,9 +123,9 @@ The domain layer checks only structural invariants. Plausibility checks on messy
 
 ## Data ingestion
 
-Each export format has an adapter, a subclass of `ActivitySource` that registers itself with
-the `@register_source("name")` decorator. `detect_source(path)` sniffs the CSV header and picks
-the matching adapter, so adding a new format means writing one class and nothing else.
+Each export format has an adapter, a subclass of `ActivitySource`. `detect_source(path)` sniffs
+the CSV header and picks the matching adapter from the list in `sources/_loader.py`, so adding a
+new format means writing one class and adding it to that list.
 
 ```python
 from race_predictor.sources import athletes_to_frame, iter_athletes, load_athlete

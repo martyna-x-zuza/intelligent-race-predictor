@@ -1,22 +1,18 @@
-"""Activity source abstraction and registry.
+"""Activity source abstraction.
 
 Each export format gets an adapter (:class:`ActivitySource` subclass) that turns its rows into
-canonical :class:`~race_predictor.domain.Activity` objects. Adapters register themselves with the
-:func:`register_source` decorator, so :func:`detect_source` can pick the right one for a file
-without the caller knowing which formats exist.
+canonical :class:`~race_predictor.domain.Activity` objects.
 
 :meth:`ActivitySource.read` is a template method: subclasses only say how to read the raw table
 (:meth:`~ActivitySource.read_table`) and how to convert one row
 (:meth:`~ActivitySource.parse_row`); skipping undated or invalid rows is shared.
 """
 
-from __future__ import annotations
-
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Hashable, Iterator, Mapping
+from collections.abc import Hashable, Iterator, Mapping
 from pathlib import Path
-from typing import Any, ClassVar, TypeVar
+from typing import Any, ClassVar
 
 import pandas as pd
 
@@ -28,17 +24,11 @@ _logger = logging.getLogger(__name__)
 #: One row of an export, as produced by ``DataFrame.to_dict(orient="records")``.
 Row = Mapping[Hashable, Any]
 
-_REGISTRY: dict[str, type[ActivitySource]] = {}
-
-_SourceT = TypeVar("_SourceT", bound="type[ActivitySource]")
-
 
 class ActivitySource(ABC):
     """Adapter that reads one export file and yields canonical activities."""
 
-    #: Registry name, set by :func:`register_source`.
     name: ClassVar[str]
-    #: Columns that must all be present for a file to be recognised as this format.
     required_columns: ClassVar[frozenset[str]]
 
     @classmethod
@@ -109,87 +99,6 @@ class ActivitySource(ABC):
         Raises:
             DataValidationError: If the parsed values violate a domain invariant.
         """
-
-
-def register_source(name: str) -> Callable[[_SourceT], _SourceT]:
-    """Build a class decorator that registers an :class:`ActivitySource` subclass.
-
-    Args:
-        name: Name to register the source under; also set as its ``name`` attribute.
-
-    Returns:
-        The decorator. It returns the class unchanged apart from ``name``.
-
-    Raises:
-        ValueError: When the decorator is applied and another class already has ``name``.
-    """
-
-    def decorator(cls: _SourceT) -> _SourceT:
-        """Register ``cls`` under the enclosing ``name``.
-
-        Args:
-            cls: The adapter class.
-
-        Returns:
-            The same class.
-        """
-        if name in _REGISTRY and _REGISTRY[name] is not cls:
-            raise ValueError(f"a source named {name!r} is already registered")
-        cls.name = name
-        _REGISTRY[name] = cls
-        return cls
-
-    return decorator
-
-
-def available_sources() -> list[str]:
-    """List the registered sources.
-
-    Returns:
-        Names of all registered sources, sorted.
-    """
-    return sorted(_REGISTRY)
-
-
-def get_source(name: str) -> ActivitySource:
-    """Instantiate a source by name.
-
-    Args:
-        name: Registry name, for example ``"strava"``.
-
-    Returns:
-        A new instance of the source.
-
-    Raises:
-        UnsupportedExportFormatError: If no source has that name.
-    """
-    try:
-        return _REGISTRY[name]()
-    except KeyError:
-        raise UnsupportedExportFormatError(
-            f"unknown source {name!r}; available: {available_sources()}"
-        ) from None
-
-
-def detect_source(path: str | Path) -> ActivitySource:
-    """Find the source that can read a file.
-
-    Args:
-        path: The export file.
-
-    Returns:
-        A new instance of the first registered source that recognises the file.
-
-    Raises:
-        UnsupportedExportFormatError: If no registered source can read ``path``.
-    """
-    path = Path(path)
-    for cls in _REGISTRY.values():
-        if cls.can_read(path):
-            return cls()
-    raise UnsupportedExportFormatError(
-        f"{path.name} is not a supported export (known formats: {available_sources()})"
-    )
 
 
 def _read_header(path: Path) -> list[str]:

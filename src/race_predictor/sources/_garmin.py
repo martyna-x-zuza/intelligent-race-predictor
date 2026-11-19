@@ -1,18 +1,15 @@
 """Adapter for the Garmin Connect activity CSV export (Polish-locale headers)."""
 
-from __future__ import annotations
-
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar, Final
 
 import pandas as pd
 
 from race_predictor.domain import Activity, ActivityType
-from race_predictor.sources._base import ActivitySource, Row, register_source
+from race_predictor.sources._base import ActivitySource, Row
 from race_predictor.sources._parsing import parse_duration, scale, to_elevation, to_float
 
-_TYPE_MAP: Final = {
+_TYPE_MAP = {
     "Bieganie": ActivityType.RUN,
     "Bieg na bieżni": ActivityType.RUN,
     "Virtual Run": ActivityType.RUN,
@@ -31,9 +28,9 @@ _TYPE_MAP: Final = {
 }
 
 #: Swim distances above this value are recorded in metres rather than kilometres.
-_MAX_SWIM_DISTANCE_KM: Final = 15.0
-_KM: Final = 1000.0
-_KMH_TO_MS: Final = 1 / 3.6
+_MAX_SWIM_DISTANCE_KM = 15.0
+_KM = 1_000.0
+_KMH_TO_MS = 1 / 3.6
 
 
 def _speed_to_ms(value: object, activity_type: ActivityType) -> float | None:
@@ -54,7 +51,7 @@ def _speed_to_ms(value: object, activity_type: ActivityType) -> float | None:
     pace_s = parse_duration(value) if ":" in str(value) else scale(to_float(value), 60)
     if pace_s is None or pace_s <= 0:
         return None
-    metres = 1000 if activity_type is ActivityType.RUN else 100
+    metres = 1_000.0 if activity_type is ActivityType.RUN else 100.0
     return metres / pace_s
 
 
@@ -112,11 +109,11 @@ def _mean_temperature(row: Row) -> float | None:
     return sum(temps) / len(temps) if temps else None
 
 
-@register_source("garmin")
 class GarminCsvSource(ActivitySource):
     """Reads the Garmin Connect activity CSV export, as in the thesis data."""
 
-    required_columns: ClassVar = frozenset({"Typ aktywności", "Data", "Dystans", "Czas"})
+    name = "garmin"
+    required_columns = frozenset({"Typ aktywności", "Data", "Dystans", "Czas"})
 
     def read_table(self, path: Path) -> pd.DataFrame:
         """Read the export.

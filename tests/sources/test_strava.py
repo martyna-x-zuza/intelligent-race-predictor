@@ -30,8 +30,8 @@ def test_reads_a_run_in_canonical_units(strava_file: Path) -> None:
     assert run.athlete_id == "a1"
     assert run.type is ActivityType.RUN
     assert run.distance_m == pytest.approx(10_000)
-    assert run.moving_s == 2900
-    assert run.elapsed_s == 3000
+    assert run.moving_s == 2_900
+    assert run.elapsed_s == 3_000
     assert run.avg_speed_ms == pytest.approx(3.4)
     assert run.avg_hr == 150
 

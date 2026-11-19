@@ -8,12 +8,9 @@ ownership). Plausibility checks on messy real-world data, such as impossible spe
 rates, belong to the cleaning pipeline, so that parsers can still represent dirty rows.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Final
 
 from race_predictor.exceptions import DataValidationError
 
@@ -38,7 +35,7 @@ class RaceCategory(StrEnum):
     OTHER = "other"
 
     @classmethod
-    def from_distance(cls, distance_m: float, tolerance: float = 0.1) -> RaceCategory:
+    def from_distance(cls, distance_m: float, tolerance: float = 0.1) -> "RaceCategory":
         """Classify a distance as the standard race distance it is closest to.
 
         Args:
@@ -55,7 +52,7 @@ class RaceCategory(StrEnum):
         return cls.OTHER
 
 
-STANDARD_DISTANCES_M: Final[dict[RaceCategory, float]] = {
+STANDARD_DISTANCES_M: dict[RaceCategory, float] = {
     RaceCategory.FIVE_K: 5_000.0,
     RaceCategory.TEN_K: 10_000.0,
     RaceCategory.HALF_MARATHON: 21_097.5,
@@ -64,7 +61,7 @@ STANDARD_DISTANCES_M: Final[dict[RaceCategory, float]] = {
 
 
 #: Activity fields that cannot be negative (temperature can, so it is not listed).
-_NON_NEGATIVE_FIELDS: Final = (
+_NON_NEGATIVE_FIELDS = (
     "distance_m",
     "elapsed_s",
     "moving_s",
@@ -77,7 +74,7 @@ _NON_NEGATIVE_FIELDS: Final = (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Activity:
     """A single recorded activity."""
 
@@ -115,7 +112,7 @@ class Activity:
         Returns:
             The distance in km, or ``None`` if it is unknown.
         """
-        return None if self.distance_m is None else self.distance_m / 1000
+        return None if self.distance_m is None else self.distance_m / 1_000.0
 
     @property
     def pace_s_per_km(self) -> float | None:
@@ -126,10 +123,10 @@ class Activity:
         """
         if not self.distance_m or self.moving_s is None:
             return None
-        return self.moving_s / (self.distance_m / 1000)
+        return self.moving_s / (self.distance_m / 1_000.0)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Race:
     """A run that was raced, together with the standard distance it corresponds to."""
 
@@ -148,7 +145,7 @@ class Race:
             raise DataValidationError("a race needs a positive distance")
 
     @classmethod
-    def from_activity(cls, activity: Activity, tolerance: float = 0.1) -> Race:
+    def from_activity(cls, activity: Activity, tolerance: float = 0.1) -> "Race":
         """Build a race, deriving the category from the activity's distance.
 
         Args:
@@ -177,7 +174,7 @@ class Race:
         return self.activity.elapsed_s
 
 
-@dataclass(slots=True)
+@dataclass
 class Athlete:
     """An athlete and their recorded activities."""
 

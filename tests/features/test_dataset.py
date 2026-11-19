@@ -20,13 +20,13 @@ def cleaned(frame: Frame, days: Days) -> pd.DataFrame:
     """Two athletes: ``a`` with 10 training runs, a swim, a 10 km race; ``b`` with one race only."""
     rows = [
         *(
-            {"date": days(i), "distance_m": 6000.0 + 100 * i, "avg_speed_ms": 3.0 + 0.01 * i}
+            {"date": days(i), "distance_m": 6_000.0 + 100 * i, "avg_speed_ms": 3.0 + 0.01 * i}
             for i in range(0, 50, 5)
         ),
-        {"date": days(20), "type": "Swim", "distance_m": 1500.0, "elapsed_s": 1800.0},
-        {"date": days(50), "distance_m": 10_000.0, "moving_s": 2700.0, "is_race": True},
-        {"date": days(60), "distance_m": 5000.0},  # after the race: must not leak in
-        {"date": days(10), "athlete_id": "b", "distance_m": 5000.0, "is_race": True},
+        {"date": days(20), "type": "Swim", "distance_m": 1_500.0, "elapsed_s": 1_800.0},
+        {"date": days(50), "distance_m": 10_000.0, "moving_s": 2_700.0, "is_race": True},
+        {"date": days(60), "distance_m": 5_000.0},  # after the race: must not leak in
+        {"date": days(10), "athlete_id": "b", "distance_m": 5_000.0, "is_race": True},
     ]
     return frame(rows).assign(
         is_race=lambda df: df["is_race"].fillna(False).astype(bool), is_triathlon=0
@@ -38,7 +38,7 @@ def test_one_example_per_race_with_enough_history(cleaned: pd.DataFrame) -> None
     assert len(ds) == 1  # athlete b has no earlier runs
     assert ds.meta.loc[0, "athlete_id"] == "a"
     assert ds.y[0] == pytest.approx(270.0)  # 2700 s over 10 km
-    assert ds.race_time_s[0] == pytest.approx(2700.0)
+    assert ds.race_time_s[0] == pytest.approx(2_700.0)
 
 
 def test_sequence_holds_only_runs_before_the_race(cleaned: pd.DataFrame) -> None:
@@ -53,7 +53,7 @@ def test_static_features(cleaned: pd.DataFrame) -> None:
     static = build_race_dataset(cleaned).static.iloc[0]
     assert set(AGGREGATES) | set(RIEGEL_COLUMNS) <= set(static.index)
     assert static["n_runs"] == 10
-    assert static["swim_sessions"] == 1 and static["swim_dist_total"] == 1500.0
+    assert static["swim_sessions"] == 1 and static["swim_dist_total"] == 1_500.0
     assert static["bike_sessions"] == 0 and static["bike_t_total"] == 0.0
     assert static["longest_run_km"] == pytest.approx(10.5)
     # Riegel reference: the fastest run of at least 5 km (the last training run).
@@ -62,8 +62,8 @@ def test_static_features(cleaned: pd.DataFrame) -> None:
 
 
 def test_riegel_reference_is_missing_without_a_long_run(frame: Frame, days: Days) -> None:
-    rows = [{"date": days(i), "distance_m": 3000.0} for i in range(5)]
-    rows.append({"date": days(9), "distance_m": 5000.0, "is_race": True})
+    rows = [{"date": days(i), "distance_m": 3_000.0} for i in range(5)]
+    rows.append({"date": days(9), "distance_m": 5_000.0, "is_race": True})
     df = frame(rows).assign(is_race=lambda d: d["is_race"].fillna(False).astype(bool))
     static = build_race_dataset(df).static.iloc[0]
     assert math.isnan(static["riegel_ref_time_s"])

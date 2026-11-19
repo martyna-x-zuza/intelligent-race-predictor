@@ -12,7 +12,7 @@ from tests.sources.conftest import GARMIN_HEADER, WriteCsv
 @pytest.mark.parametrize(
     ("value", "activity_type", "expected"),
     [
-        ("5:00", ActivityType.RUN, 1000 / 300),
+        ("5:00", ActivityType.RUN, 1_000 / 300),
         ("2:00", ActivityType.SWIM, 100 / 120),
         ("36", ActivityType.RIDE, 10.0),
         ("36,0", ActivityType.WORKOUT, 10.0),
@@ -36,10 +36,10 @@ def test_reads_a_run_in_canonical_units(garmin_file: Path) -> None:
     run, _, _ = GarminCsvSource().read(garmin_file, "a1")
     assert run.type is ActivityType.RUN
     assert run.date == datetime(2025, 9, 19, 21, 33, 31)
-    assert run.distance_m == pytest.approx(6440)
-    assert run.elapsed_s == 2290  # no "Upłynęło czasu" column: falls back to "Czas"
-    assert run.moving_s == 2277
-    assert run.avg_speed_ms == pytest.approx(1000 / 356)
+    assert run.distance_m == pytest.approx(6_440)
+    assert run.elapsed_s == 2_290  # no "Upłynęło czasu" column: falls back to "Czas"
+    assert run.moving_s == 2_277
+    assert run.avg_speed_ms == pytest.approx(1_000 / 356)
     assert run.max_hr == 177
     assert run.avg_temp_c == pytest.approx(22.5)
 
@@ -54,7 +54,7 @@ def test_ride_speed_is_in_kmh_and_one_temperature_is_enough(garmin_file: Path) -
 def test_swim_distance_in_metres_is_converted(garmin_file: Path) -> None:
     _, _, swim = GarminCsvSource().read(garmin_file, "a1")
     assert swim.type is ActivityType.SWIM
-    assert swim.distance_m == pytest.approx(1500)
+    assert swim.distance_m == pytest.approx(1_500)
     assert swim.avg_hr is None
     assert swim.avg_temp_c is None
 

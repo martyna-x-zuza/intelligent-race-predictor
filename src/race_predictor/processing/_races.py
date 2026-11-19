@@ -9,9 +9,7 @@ cleaning pipeline.
 ``personalized_model.ipynb``.
 """
 
-from __future__ import annotations
-
-from typing import Final, Protocol
+from typing import Protocol
 
 import numpy as np
 import pandas as pd
@@ -19,10 +17,8 @@ import pandas as pd
 from race_predictor.domain import STANDARD_DISTANCES_M, ActivityType
 from race_predictor.processing._pipeline import Step
 
-#: Runs longer than this score as a race on distance alone.
-_ULTRA_DISTANCE_M: Final = 40_000.0
-#: A run this much faster than the athlete's rolling average pace counts as a speed spike.
-_SPEED_SPIKE_RATIO: Final = 1.4
+_ULTRA_DISTANCE_M = 40_000.0
+_SPEED_SPIKE_RATIO = 1.4
 
 
 class RaceDetector(Protocol):
@@ -97,7 +93,7 @@ class HeuristicRaceDetector:
         self,
         hr_threshold: float = 0.86,
         days_window: int = 365,
-        min_distance_m: float = 3000.0,
+        min_distance_m: float = 3_000.0,
         max_time_ratio: float = 1.1,
         min_score: int = 2,
     ) -> None:

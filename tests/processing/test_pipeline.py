@@ -30,7 +30,7 @@ class _AddOne(Step):
 def test_pipeline_runs_steps_in_order(frame: Frame, days: Days) -> None:
     pipeline = Pipeline([_AddOne(), _AddOne()])
     out = pipeline.run(frame([{"date": days(0)}]))
-    assert out["distance_m"].iloc[0] == 8002.0
+    assert out["distance_m"].iloc[0] == 8_002.0
     assert len(pipeline) == 2
     assert [repr(step) for step in pipeline] == ["_AddOne()", "_AddOne()"]
 

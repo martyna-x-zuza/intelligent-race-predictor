@@ -20,7 +20,7 @@ def test_to_float_returns_none_for_missing_values(value: object) -> None:
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [("01:02:03", 3723.0), ("5:56", 356.0), ("00:00:01.5", 1.5), ("2900", 2900.0)],
+    [("01:02:03", 3_723.0), ("5:56", 356.0), ("00:00:01.5", 1.5), ("2900", 2_900.0)],
 )
 def test_parse_duration(value: str, expected: float) -> None:
     assert parse_duration(value) == pytest.approx(expected)
@@ -32,8 +32,8 @@ def test_parse_duration_returns_none_for_invalid_values(value: object) -> None:
 
 
 def test_scale_keeps_missing_values_missing() -> None:
-    assert scale(2.0, 1000) == 2000.0
-    assert scale(None, 1000) is None
+    assert scale(2.0, 1_000) == 2_000.0
+    assert scale(None, 1_000) is None
 
 
 def test_negative_elevation_is_treated_as_missing() -> None:

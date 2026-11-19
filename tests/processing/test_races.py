@@ -12,7 +12,7 @@ from tests.conftest import Days, Frame
 
 
 def test_is_standard_distance() -> None:
-    distances = pd.Series([5100.0, 7000.0, 21_000.0, 42_500.0, 46_500.0])
+    distances = pd.Series([5_100.0, 7_000.0, 21_000.0, 42_500.0, 46_500.0])
     assert _is_standard_distance(distances).tolist() == [True, False, True, True, False]
 
 
@@ -20,7 +20,7 @@ def test_standard_distance_detector(frame: Frame, days: Days) -> None:
     df = frame(
         [
             {"date": days(0), "distance_m": 10_100.0},
-            {"date": days(1), "distance_m": 7000.0},
+            {"date": days(1), "distance_m": 7_000.0},
             {"date": days(2), "distance_m": 10_000.0, "type": "Ride"},
         ]
     )
@@ -29,7 +29,7 @@ def test_standard_distance_detector(frame: Frame, days: Days) -> None:
 
 def test_heuristic_detector_flags_a_hard_standard_distance_run(frame: Frame, days: Days) -> None:
     easy = [
-        {"date": days(i), "distance_m": 7000.0, "avg_hr": 140.0, "avg_speed_ms": 3.0}
+        {"date": days(i), "distance_m": 7_000.0, "avg_hr": 140.0, "avg_speed_ms": 3.0}
         for i in range(0, 60, 3)
     ]
     race = {"date": days(61), "distance_m": 10_000.0, "avg_hr": 175.0, "avg_speed_ms": 3.6}
@@ -44,7 +44,7 @@ def test_heuristic_reasons_explain_the_decision(frame: Frame, days: Days) -> Non
         [
             *({"date": days(i)} for i in range(5)),
             {"date": days(6), "distance_m": 10_000.0, "avg_hr": 175.0},  # high HR + 10 km
-            {"date": days(7), "distance_m": 7000.0},  # nothing special
+            {"date": days(7), "distance_m": 7_000.0},  # nothing special
         ]
     ).assign(hr_max=190.0, is_triathlon=0)
     detector = HeuristicRaceDetector()
@@ -57,7 +57,7 @@ def test_heuristic_reasons_explain_the_decision(frame: Frame, days: Days) -> Non
 
 
 def test_long_stops_disqualify_a_race(frame: Frame, days: Days) -> None:
-    df = frame([{"date": days(0), "distance_m": 10_000.0, "avg_hr": 175.0, "elapsed_s": 4000.0}])
+    df = frame([{"date": days(0), "distance_m": 10_000.0, "avg_hr": 175.0, "elapsed_s": 4_000.0}])
     assert not HeuristicRaceDetector().detect(df.assign(hr_max=190.0)).iloc[0]
 
 

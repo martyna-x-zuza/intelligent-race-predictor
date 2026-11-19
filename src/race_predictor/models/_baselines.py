@@ -1,8 +1,6 @@
 """Baselines: the Riegel formula, ridge regression and gradient boosting."""
 
-from __future__ import annotations
-
-from typing import Any, ClassVar, Final, Self, TypeVar
+from typing import Any, Self, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -16,8 +14,7 @@ from sklearn.preprocessing import StandardScaler
 from race_predictor.features import FloatArray, RaceDataset
 from race_predictor.models._base import RaceModel
 
-#: Fatigue exponent of Riegel (1981).
-RIEGEL_EXPONENT: Final = 1.06
+RIEGEL_EXPONENT = 1.06
 
 _Number = TypeVar("_Number", float, npt.NDArray[np.float64], "pd.Series[float]")
 
@@ -91,7 +88,7 @@ class RiegelBaseline(RaceModel):
             distance_m,
             self._exponent,
         )
-        pace: FloatArray = time_s / (distance_m / 1000)
+        pace: FloatArray = time_s / (distance_m / 1_000.0)
         return np.where(np.isnan(pace), self._fallback, pace)
 
 
@@ -104,7 +101,7 @@ class TabularModel(RaceModel):
 
     def __init__(self) -> None:
         """Create an unfitted model."""
-        self._estimator: Any = None  # scikit-learn has no type hints
+        self._estimator: Any = None
         self._empty_columns = np.zeros(len(RaceDataset.tabular_columns), dtype=bool)
 
     def make_estimator(self) -> Any:
@@ -165,7 +162,7 @@ class TabularModel(RaceModel):
 class RidgeBaseline(TabularModel):
     """Ridge regression on median-imputed, standardised features."""
 
-    name: ClassVar[str] = "Ridge"
+    name = "Ridge"
 
     def __init__(self, alpha: float = 10.0) -> None:
         """Create the model.
@@ -188,7 +185,7 @@ class RidgeBaseline(TabularModel):
 class GradientBoostingBaseline(TabularModel):
     """scikit-learn histogram gradient boosting with small, fixed hyper-parameters."""
 
-    name: ClassVar[str] = "HistGB"
+    name = "HistGB"
 
     def __init__(
         self,

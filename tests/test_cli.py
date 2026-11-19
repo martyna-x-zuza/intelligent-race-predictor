@@ -45,5 +45,5 @@ def test_baselines_writes_the_report_and_the_artifacts(
     assert params["data_dir"] == str(DATA)
     assert params["n_races"] > 50
     results = (artifacts / "results.csv").read_text().splitlines()
-    assert results[0].startswith("model,protocol,MAE_time_min")
+    assert results[0].startswith("model,protocol,mae_time_min")
     assert len(results) == 1 + 2 * 2  # header + 2 models x 2 protocols

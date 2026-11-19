@@ -1,7 +1,5 @@
 """Training windows: the runs an athlete did before each race."""
 
-from __future__ import annotations
-
 from collections.abc import Iterator
 
 import pandas as pd

@@ -24,11 +24,11 @@ DATA = Path(__file__).parents[2] / "data"
 
 def test_evaluate() -> None:
     metrics = evaluate([100.0, 200.0], [110.0, 180.0])
-    assert metrics["mae"] == pytest.approx(15.0)
-    assert metrics["rmse"] == pytest.approx(np.sqrt((100 + 400) / 2))
-    assert metrics["mape_pct"] == pytest.approx(10.0)
-    assert metrics["median_ape_pct"] == pytest.approx(10.0)
-    assert metrics["nrmse_pct"] == pytest.approx(100 * metrics["rmse"] / 100)
+    assert metrics.mae == pytest.approx(15.0)
+    assert metrics.rmse == pytest.approx(np.sqrt((100 + 400) / 2))
+    assert metrics.mape_pct == pytest.approx(10.0)
+    assert metrics.median_ape_pct == pytest.approx(10.0)
+    assert metrics.nrmse_pct == pytest.approx(100 * metrics.rmse / 100)
 
 
 @pytest.mark.parametrize(
@@ -81,7 +81,7 @@ def test_protocol_predictions_cover_both_protocols() -> None:
 def test_compare_models_table() -> None:
     table = compare_models(make_dataset(), {"Riegel": RiegelBaseline})
     assert table["protocol"].tolist() == ["chronological", "grouped-CV"]
-    assert {"MAE_time_min", "MAPE_%", "MedAPE_%", "fit_s"} <= set(table.columns)
+    assert {"mae_time_min", "mape_pct", "median_ape_pct", "fit_s"} <= set(table.columns)
     assert (table["fit_s"] >= 0).all()
 
 

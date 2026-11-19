@@ -6,19 +6,15 @@ input), so steps can be reordered, switched off or tested in isolation. :class:`
 them in order (Chain of Responsibility / Pipeline pattern).
 """
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
-from typing import Final
 
 import pandas as pd
 
 from race_predictor.domain import ActivityType
 from race_predictor.exceptions import DataValidationError
 
-#: Columns every pipeline input must have.
-_REQUIRED_COLUMNS: Final = frozenset(
+_REQUIRED_COLUMNS = frozenset(
     {"athlete_id", "date", "type", "distance_m", "avg_speed_ms", "max_speed_ms", "avg_hr", "max_hr"}
 )
 
@@ -123,7 +119,7 @@ class RemoveAnomalies(Step):
         self,
         max_avg_speed_ms: float = 8.0,
         max_peak_speed_ms: float = 15.0,
-        min_distance_m: float = 1000.0,
+        min_distance_m: float = 1_000.0,
     ) -> None:
         """Create the step.
 
@@ -306,7 +302,7 @@ class MarkTriathlonRuns(Step):
         df = df.sort_values(["athlete_id", "date"]).reset_index(drop=True)
         by_athlete = df.groupby("athlete_id")
         previous_type = by_athlete["type"].shift()
-        gap_hours = (df["date"] - by_athlete["date"].shift()).dt.total_seconds() / 3600
+        gap_hours = (df["date"] - by_athlete["date"].shift()).dt.total_seconds() / 3_600.0
         after_ride = (
             _is_run(df) & (previous_type == ActivityType.RIDE) & (gap_hours <= self._max_gap_hours)
         )

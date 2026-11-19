@@ -5,13 +5,9 @@ pandas as ``NaN``. Every helper returns ``None`` for a missing or unparseable va
 how the domain model represents a missing measurement.
 """
 
-from __future__ import annotations
-
 import math
-from typing import Final
 
-#: Cell contents that mean "no value" in Strava and Garmin exports.
-_MISSING: Final = frozenset({"", "--", "none", "nan"})
+_MISSING = frozenset({"", "--", "none", "nan"})
 
 
 def _clean(value: object) -> str | None:
@@ -91,7 +87,7 @@ def scale(value: float | None, factor: float) -> float | None:
 
     Args:
         value: The value to convert, or ``None`` if it is missing.
-        factor: Conversion factor, for example 1000 for kilometres to metres.
+        factor: Conversion factor, for example 1_000.0 for kilometres to metres.
 
     Returns:
         ``value * factor``, or ``None`` if ``value`` is missing.

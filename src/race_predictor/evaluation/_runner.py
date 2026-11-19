@@ -3,14 +3,11 @@
 The command line entry point is ``race-predictor baselines`` (:mod:`race_predictor.cli`).
 """
 
-from __future__ import annotations
-
 import json
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final
 
 import numpy as np
 import pandas as pd
@@ -31,19 +28,16 @@ from race_predictor.utils import timer
 
 ModelFactory = Callable[[], RaceModel]
 
-#: Sub-directories of the data directory that hold the exports.
-_EXPORT_DIRS: Final = ("strava_activities", "garmin_activities")
+_EXPORT_DIRS = ("strava_activities", "garmin_activities")
 
-DEFAULT_FACTORIES: Final[Mapping[str, ModelFactory]] = {
+DEFAULT_FACTORIES: Mapping[str, ModelFactory] = {
     "Riegel": RiegelBaseline,
     "Ridge": RidgeBaseline,
     "HistGB": GradientBoostingBaseline,
 }
 
-_CONCLUSIONS_HEADING: Final = "## Conclusions"
-_CONCLUSIONS_TEMPLATE: Final = (
-    f"\n{_CONCLUSIONS_HEADING}\n\n(to be written after reading the table)\n"
-)
+_CONCLUSIONS_HEADING = "## Conclusions"
+_CONCLUSIONS_TEMPLATE = f"\n{_CONCLUSIONS_HEADING}\n\n(to be written after reading the table)\n"
 
 
 @dataclass(frozen=True)
@@ -63,27 +57,59 @@ class EvaluationParams:
     test_fraction: float = 0.2
 
 
-def _score(ds: RaceDataset, pace_pred: FloatArray) -> dict[str, float]:
-    """Compute time and pace metrics of predicted paces.
+@dataclass(frozen=True)
+class ModelResult:
+    """Evaluation of one model under one protocol: one row of the results table.
+
+    Attributes:
+        model: Name of the model.
+        protocol: Name of the evaluation protocol.
+        mae_time_min: Mean absolute error of the race time, in minutes.
+        rmse_time_min: Root mean squared error of the race time, in minutes.
+        mape_pct: Mean absolute percentage error of the race time.
+        median_ape_pct: Median absolute percentage error of the race time.
+        mae_pace_s_km: Mean absolute error of the pace, in s/km.
+        fit_s: Wall-clock time of fitting and predicting, in seconds.
+    """
+
+    model: str
+    protocol: str
+    mae_time_min: float
+    rmse_time_min: float
+    mape_pct: float
+    median_ape_pct: float
+    mae_pace_s_km: float
+    fit_s: float
+
+
+def _score(
+    model: str, protocol: str, ds: RaceDataset, pace_pred: FloatArray, fit_s: float
+) -> ModelResult:
+    """Compute the time and pace metrics of predicted paces.
 
     Args:
+        model: Name of the model.
+        protocol: Name of the evaluation protocol.
         ds: The predicted races (with their true paces).
         pace_pred: Predicted pace of every race in ``ds``, in s/km.
+        fit_s: Wall-clock time of fitting and predicting, in seconds.
 
     Returns:
-        Metrics on total race time (``MAE_time_min``, ``RMSE_time_min``, ``MAPE_%``,
-        ``MedAPE_%``) and on pace (``MAE_pace_s_km``).
+        The metrics on the total race time and on the pace.
     """
-    distance_km = ds.meta["race_distance_m"].to_numpy(dtype=float) / 1000
+    distance_km = ds.meta["race_distance_m"].to_numpy(dtype=float) / 1_000.0
     time = evaluate(ds.race_time_s, pace_pred * distance_km)
     pace = evaluate(ds.y, pace_pred)
-    return {
-        "MAE_time_min": time["mae"] / 60,
-        "RMSE_time_min": time["rmse"] / 60,
-        "MAPE_%": time["mape_pct"],
-        "MedAPE_%": time["median_ape_pct"],
-        "MAE_pace_s_km": pace["mae"],
-    }
+    return ModelResult(
+        model=model,
+        protocol=protocol,
+        mae_time_min=time.mae / 60,
+        rmse_time_min=time.rmse / 60,
+        mape_pct=time.mape_pct,
+        median_ape_pct=time.median_ape_pct,
+        mae_pace_s_km=pace.mae,
+        fit_s=fit_s,
+    )
 
 
 def protocol_predictions(
@@ -128,10 +154,9 @@ def compare_models(
         test_fraction: Share of each athlete's races held out by the chronological split.
 
     Returns:
-        One row per model and protocol with the metrics and ``fit_s``, the wall-clock time of
-        fitting and predicting.
+        One row per model and protocol, with the fields of :class:`ModelResult` as columns.
     """
-    rows = []
+    results = []
     for name, make in factories.items():
         predictions = protocol_predictions(ds, make, n_splits, test_fraction)
         while True:
@@ -140,9 +165,8 @@ def compare_models(
             if result is None:
                 break
             protocol, predicted, positions = result
-            metrics = _score(ds.subset(positions), predicted)
-            rows.append({"model": name, "protocol": protocol, **metrics, "fit_s": elapsed.seconds})
-    return pd.DataFrame(rows)
+            results.append(_score(name, protocol, ds.subset(positions), predicted, elapsed.seconds))
+    return pd.DataFrame([asdict(result) for result in results])
 
 
 def load_dataset(data_dir: Path, pipeline: Pipeline | None = None) -> RaceDataset:
@@ -195,7 +219,7 @@ def _results_markdown(ds: RaceDataset, table: pd.DataFrame, params: EvaluationPa
     return (
         "# Baseline results\n\n"
         f"{len(ds)} races from {athletes} athletes (Strava and Garmin exports). Metrics are on "
-        "total race time (predicted pace x distance), except `MAE_pace_s_km`.\n\n"
+        "total race time (predicted pace x distance), except `mae_pace_s_km`.\n\n"
         f"- `chronological`: thesis protocol, the latest {held_out} % of each athlete's races "
         "are held out.\n"
         f"- `grouped-CV`: {params.n_splits}-fold cross-validation holding out whole "

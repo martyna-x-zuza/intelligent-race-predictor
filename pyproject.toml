@@ -66,6 +66,7 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 # Test names describe the behaviour; docstrings are required in src/ only.
 "tests/**" = ["D"]
+"src/race_predictor/cli.py" = ["T20"]
 
 [tool.mypy]
 strict = true

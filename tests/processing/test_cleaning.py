@@ -55,7 +55,7 @@ def test_runs_after_a_ride_are_history_not_races(frame: Frame, days: Days) -> No
         [
             *({"date": days(i), "avg_hr": 140.0} for i in range(5)),
             {"date": days(6), "type": "Ride", "distance_m": 40_000.0, "avg_speed_ms": 8.0},
-            {"date": days(6) + pd.Timedelta(hours=1), "distance_m": 5000.0, "avg_hr": 140.0},
+            {"date": days(6) + pd.Timedelta(hours=1), "distance_m": 5_000.0, "avg_hr": 140.0},
             {"date": days(8), "distance_m": 10_000.0, "avg_hr": 175.0},  # a real 10 km race
         ]
     )

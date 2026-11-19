@@ -1,19 +1,16 @@
 """Adapter for the Strava ``activities.csv`` bulk export."""
 
-from __future__ import annotations
-
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar, Final
 
 import pandas as pd
 from dateutil import parser as date_parser
 
 from race_predictor.domain import Activity, ActivityType
-from race_predictor.sources._base import ActivitySource, Row, register_source
+from race_predictor.sources._base import ActivitySource, Row
 from race_predictor.sources._parsing import scale, to_elevation, to_float
 
-_TYPE_MAP: Final = {
+_TYPE_MAP = {
     "Run": ActivityType.RUN,
     "Virtual Run": ActivityType.RUN,
     "Ride": ActivityType.RIDE,
@@ -22,7 +19,7 @@ _TYPE_MAP: Final = {
     "Weight Training": ActivityType.WEIGHT_TRAINING,
 }
 
-_KM: Final = 1000.0
+_KM = 1_000.0
 
 
 def _parse_strava_date(value: object) -> datetime | None:
@@ -42,16 +39,14 @@ def _parse_strava_date(value: object) -> datetime | None:
         return None
 
 
-@register_source("strava")
 class StravaCsvSource(ActivitySource):
     """Reads the Strava ``activities.csv`` export.
 
     Units: ``Distance`` is in kilometres, times in seconds, speeds in m/s.
     """
 
-    required_columns: ClassVar = frozenset(
-        {"Activity Date", "Activity Type", "Activity Name", "Moving Time"}
-    )
+    name = "strava"
+    required_columns = frozenset({"Activity Date", "Activity Type", "Activity Name", "Moving Time"})
 
     def read_table(self, path: Path) -> pd.DataFrame:
         """Read the export, merging its duplicated maximum heart rate columns.

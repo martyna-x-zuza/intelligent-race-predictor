@@ -1,7 +1,5 @@
 """Common interface of every race-time model."""
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from typing import ClassVar, Self
 
@@ -15,7 +13,6 @@ class RaceModel(ABC):
     neural network alike.
     """
 
-    #: Short label used in result tables.
     name: ClassVar[str]
 
     @abstractmethod

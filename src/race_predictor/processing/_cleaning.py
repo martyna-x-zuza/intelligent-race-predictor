@@ -12,8 +12,6 @@ does.
   look like a race.
 """
 
-from __future__ import annotations
-
 from typing import Literal
 
 from race_predictor.processing._pipeline import (

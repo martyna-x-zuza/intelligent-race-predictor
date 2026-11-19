@@ -5,8 +5,6 @@ and runnable as ``python -m race_predictor``. Every user-facing action is a subc
 actions (prediction, the app) are added here instead of as separate scripts.
 """
 
-from __future__ import annotations
-
 import argparse
 import logging
 from collections.abc import Sequence
@@ -69,8 +67,8 @@ def _baselines(args: argparse.Namespace) -> None:
         test_fraction=args.test_fraction,
     )
     table = run_baselines(params, args.report, args.artifacts)
-    print(table.to_string(index=False, float_format="{:.2f}".format))  # noqa: T201
-    print(f"\nReport: {args.report}\nArtifacts: {args.artifacts}")  # noqa: T201
+    print(table.to_string(index=False, float_format="{:.2f}".format))
+    print(f"\nReport: {args.report}\nArtifacts: {args.artifacts}")
 
 
 def main(argv: Sequence[str] | None = None) -> None:

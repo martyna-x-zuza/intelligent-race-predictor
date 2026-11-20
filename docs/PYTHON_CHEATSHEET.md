@@ -75,10 +75,11 @@ subclasses must implement.*
 *A class variable is one value shared by the class (and all its instances), not stored per object.*
 ```python
 class RaceModel(ABC):
-    name: ClassVar[str]          # declaration only: "every subclass must set it"
+    name: ClassVar[str]  # declaration only: "every subclass must set it"
+
 
 class RiegelBaseline(RaceModel):
-    name = "Riegel"              # the value
+    name = "Riegel"  # the value
 ```
 - `ClassVar` tells mypy "this is a class-level attribute, not an instance field". It is used in
   the base classes only.
@@ -138,7 +139,11 @@ ModelFactory = Callable[[], RaceModel]
 
 ### `DEFAULT_FACTORIES: Mapping[str, ModelFactory] = {...}`
 ```python
-DEFAULT_FACTORIES = {"Riegel": RiegelBaseline, "Ridge": RidgeBaseline, "HistGB": GradientBoostingBaseline}
+DEFAULT_FACTORIES = {
+    "Riegel": RiegelBaseline,
+    "Ridge": RidgeBaseline,
+    "HistGB": GradientBoostingBaseline,
+}
 ```
 - Name to class (not an instance: no parentheses!). One place that lists the available models.
 - The CLI uses its keys for `--models` choices, and `run_baselines` calls the values to build
@@ -375,7 +380,8 @@ def cleaning_pipeline(
   @pytest.fixture
   def days() -> Days: ...
 
-  def test_x(days: Days) -> None: ...   # pytest passes the fixture's value
+
+  def test_x(days: Days) -> None: ...  # pytest passes the fixture's value
   ```
 - Fixtures in `tests/conftest.py` are available to all tests. They remove repeated setup.
 

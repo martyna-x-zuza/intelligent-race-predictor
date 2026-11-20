@@ -10,6 +10,7 @@ from race_predictor.features._dataset import (
     STATIC_BINARY,
     STATIC_NUMERIC,
     FloatArray,
+    Index,
     RaceDataset,
     build_race_dataset,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "STATIC_BINARY",
     "STATIC_NUMERIC",
     "FloatArray",
+    "Index",
     "RaceDataset",
     "build_race_dataset",
 ]

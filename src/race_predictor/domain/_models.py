@@ -11,6 +11,7 @@ rates, belong to the cleaning pipeline, so that parsers can still represent dirt
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from typing import Self
 
 from race_predictor.exceptions import DataValidationError
 
@@ -35,7 +36,7 @@ class RaceCategory(StrEnum):
     OTHER = "other"
 
     @classmethod
-    def from_distance(cls, distance_m: float, tolerance: float = 0.1) -> "RaceCategory":
+    def from_distance(cls, distance_m: float, tolerance: float = 0.1) -> Self:
         """Classify a distance as the standard race distance it is closest to.
 
         Args:
@@ -145,7 +146,7 @@ class Race:
             raise DataValidationError("a race needs a positive distance")
 
     @classmethod
-    def from_activity(cls, activity: Activity, tolerance: float = 0.1) -> "Race":
+    def from_activity(cls, activity: Activity, tolerance: float = 0.1) -> Self:
         """Build a race, deriving the category from the activity's distance.
 
         Args:

@@ -77,9 +77,9 @@ def test_no_qualifying_race_is_an_error(cleaned: pd.DataFrame) -> None:
 def test_subset_by_positions_and_mask(cleaned: pd.DataFrame) -> None:
     ds = build_race_dataset(cleaned, min_runs=0)
     assert len(ds) == 2
-    assert ds.subset([1]).meta["athlete_id"].tolist() == ["b"]
+    assert ds.subset(np.array([1])).meta["athlete_id"].tolist() == ["b"]
     assert ds.subset(np.array([True, False])).meta["athlete_id"].tolist() == ["a"]
-    assert len(ds.subset([])) == 0
+    assert len(ds.subset(np.array([], dtype=np.intp))) == 0
 
 
 def test_inconsistent_parts_are_rejected() -> None:

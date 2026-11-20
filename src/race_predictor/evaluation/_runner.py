@@ -14,8 +14,8 @@ import pandas as pd
 
 from race_predictor import __version__
 from race_predictor.evaluation._metrics import evaluate
-from race_predictor.evaluation._splits import Index, chronological_split, grouped_splits
-from race_predictor.features import FloatArray, RaceDataset, build_race_dataset
+from race_predictor.evaluation._splits import chronological_split, grouped_splits
+from race_predictor.features import FloatArray, Index, RaceDataset, build_race_dataset
 from race_predictor.models import (
     GradientBoostingBaseline,
     RaceModel,

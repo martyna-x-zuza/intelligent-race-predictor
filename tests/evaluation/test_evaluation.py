@@ -23,7 +23,7 @@ DATA = Path(__file__).parents[2] / "data"
 
 
 def test_evaluate() -> None:
-    metrics = evaluate([100.0, 200.0], [110.0, 180.0])
+    metrics = evaluate(np.array([100.0, 200.0]), np.array([110.0, 180.0]))
     assert metrics.mae == pytest.approx(15.0)
     assert metrics.rmse == pytest.approx(np.sqrt((100 + 400) / 2))
     assert metrics.mape_pct == pytest.approx(10.0)
@@ -36,7 +36,7 @@ def test_evaluate() -> None:
 )
 def test_evaluate_rejects_invalid_input(y_true: list[float], y_pred: list[float]) -> None:
     with pytest.raises(DataValidationError):
-        evaluate(y_true, y_pred)
+        evaluate(np.array(y_true), np.array(y_pred))
 
 
 def test_chronological_split_holds_out_each_athletes_latest_races() -> None:

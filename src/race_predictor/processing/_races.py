@@ -1,15 +1,14 @@
 """Race detection strategies.
 
 The exports do not say which runs were races, so a detector decides. Detectors are
-interchangeable (Strategy pattern): anything with a ``detect(df) -> Series[bool]`` method
-satisfies the :class:`RaceDetector` protocol, and :class:`DetectRaces` plugs one into the
-cleaning pipeline.
+interchangeable (Strategy pattern): each one subclasses :class:`RaceDetector` and implements
+``detect(df) -> Series[bool]``, and :class:`DetectRaces` plugs one into the cleaning pipeline.
 
 :class:`HeuristicRaceDetector` ports ``identify_races`` from the thesis notebook
 ``personalized_model.ipynb``.
 """
 
-from typing import Protocol
+from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
@@ -21,9 +20,10 @@ _ULTRA_DISTANCE_M = 40_000.0
 _SPEED_SPIKE_RATIO = 1.4
 
 
-class RaceDetector(Protocol):
-    """Anything that decides which rows of an activity table are races."""
+class RaceDetector(ABC):
+    """Decides which rows of an activity table are races."""
 
+    @abstractmethod
     def detect(self, df: pd.DataFrame) -> pd.Series:
         """Decide which rows are races.
 
@@ -33,7 +33,6 @@ class RaceDetector(Protocol):
         Returns:
             Boolean Series aligned to ``df.index``, ``True`` where the row is a race.
         """
-        ...
 
 
 def _is_standard_distance(distance_m: pd.Series, tolerance: float = 0.1) -> pd.Series:
@@ -52,7 +51,7 @@ def _is_standard_distance(distance_m: pd.Series, tolerance: float = 0.1) -> pd.S
     return flags
 
 
-class StandardDistanceDetector:
+class StandardDistanceDetector(RaceDetector):
     """Simplest strategy: every run of a standard race distance is a race."""
 
     def __init__(self, tolerance: float = 0.1) -> None:
@@ -77,7 +76,7 @@ class StandardDistanceDetector:
         )
 
 
-class HeuristicRaceDetector:
+class HeuristicRaceDetector(RaceDetector):
     """Score-based heuristic from the thesis.
 
     A run scores 2 points each for a high heart rate (above ``hr_threshold`` x HRmax), an

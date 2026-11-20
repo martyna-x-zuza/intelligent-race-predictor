@@ -9,12 +9,9 @@
 from collections.abc import Iterator
 
 import numpy as np
-import numpy.typing as npt
 from sklearn.model_selection import GroupKFold
 
-from race_predictor.features import RaceDataset
-
-Index = npt.NDArray[np.intp]
+from race_predictor.features import Index, RaceDataset
 
 
 def chronological_split(ds: RaceDataset, test_fraction: float = 0.2) -> tuple[Index, Index]:

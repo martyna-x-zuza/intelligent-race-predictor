@@ -15,12 +15,11 @@ from race_predictor.evaluation._runner import (
     run_baselines,
     write_report,
 )
-from race_predictor.evaluation._splits import Index, chronological_split, grouped_splits
+from race_predictor.evaluation._splits import chronological_split, grouped_splits
 
 __all__ = [
     "DEFAULT_FACTORIES",
     "EvaluationParams",
-    "Index",
     "Metrics",
     "ModelFactory",
     "ModelResult",

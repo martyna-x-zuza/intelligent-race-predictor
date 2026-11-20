@@ -11,8 +11,8 @@ evaluation). Every example has two views of the athlete's preparation:
 The target is race pace in seconds per kilometre.
 """
 
-from collections.abc import Sequence
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, fields, replace
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -22,6 +22,7 @@ from race_predictor.domain import ActivityType
 from race_predictor.exceptions import DataValidationError
 
 FloatArray = npt.NDArray[np.float64]
+Index = npt.NDArray[np.intp]
 
 SEQ_FEATURES = (
     "days_to_race",
@@ -70,7 +71,7 @@ class CrossTraining:
     gym_sessions: float
 
     @classmethod
-    def from_activities(cls, activities: pd.DataFrame) -> "CrossTraining":
+    def from_activities(cls, activities: pd.DataFrame) -> Self:
         """Total up the non-running activities of a window.
 
         Args:
@@ -110,9 +111,7 @@ class TrainingSummary:
     weekly_km: float
 
     @classmethod
-    def from_window(
-        cls, window: pd.DataFrame, race_date: pd.Timestamp, days_window: int
-    ) -> "TrainingSummary":
+    def from_window(cls, window: pd.DataFrame, race_date: pd.Timestamp, days_window: int) -> Self:
         """Summarise the runs of a training window.
 
         Args:
@@ -148,7 +147,7 @@ class RiegelReference:
     riegel_ref_time_s: float
 
     @classmethod
-    def from_window(cls, window: pd.DataFrame) -> "RiegelReference":
+    def from_window(cls, window: pd.DataFrame) -> Self:
         """Find the fastest run of at least 5 km in a training window.
 
         Args:
@@ -245,9 +244,7 @@ class RaceDataset:
         """
         return len(self.y)
 
-    def subset(
-        self, index: Sequence[int] | npt.NDArray[np.integer] | npt.NDArray[np.bool_]
-    ) -> "RaceDataset":
+    def subset(self, index: Index | npt.NDArray[np.bool_]) -> Self:
         """Select some of the races.
 
         Args:
@@ -258,11 +255,12 @@ class RaceDataset:
         """
         array = np.asarray(index)
         positions = np.flatnonzero(array) if array.dtype == bool else array.astype(np.intp)
-        return RaceDataset(
-            [self.seqs[i] for i in positions],
-            self.static.iloc[positions].reset_index(drop=True),
-            self.y[positions],
-            self.meta.iloc[positions].reset_index(drop=True),
+        return replace(
+            self,
+            seqs=[self.seqs[i] for i in positions],
+            static=self.static.iloc[positions].reset_index(drop=True),
+            y=self.y[positions],
+            meta=self.meta.iloc[positions].reset_index(drop=True),
         )
 
     @property

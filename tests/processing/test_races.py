@@ -62,12 +62,11 @@ def test_long_stops_disqualify_a_race(frame: Frame, days: Days) -> None:
 
 
 def test_detect_races_accepts_any_strategy(frame: Frame, days: Days) -> None:
-    class EveryRun:
+    class EveryRun(RaceDetector):
         def detect(self, df: pd.DataFrame) -> pd.Series:
             return df["type"] == "Run"
 
-    detector: RaceDetector = EveryRun()
-    step = DetectRaces(detector)
+    step = DetectRaces(EveryRun())
     out = step.apply(frame([{"date": days(0)}, {"date": days(1), "type": "Swim"}]))
     assert out["is_race"].tolist() == [True, False]
     assert repr(step) == "DetectRaces(EveryRun)"

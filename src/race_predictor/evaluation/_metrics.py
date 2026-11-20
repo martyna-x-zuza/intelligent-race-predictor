@@ -7,9 +7,9 @@ races pull the mean far above the typical error.
 from dataclasses import dataclass
 
 import numpy as np
-import numpy.typing as npt
 
 from race_predictor.exceptions import DataValidationError
+from race_predictor.features import FloatArray
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ class Metrics:
     median_ape_pct: float
 
 
-def evaluate(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> Metrics:
+def evaluate(y_true: FloatArray, y_pred: FloatArray) -> Metrics:
     """Compute the regression metrics of a prediction.
 
     Args:

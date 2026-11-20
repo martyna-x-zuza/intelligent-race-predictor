@@ -166,8 +166,8 @@ dataset = build_race_dataset(cleaned)  # one example per race
 - **Steps:** remove implausible runs (thesis thresholds), rides logged as runs (more than
   1.7x the athlete's median speed), heart-rate sensor spikes and athletes without heart rate.
   Then estimate HRmax, mark runs right after a ride, and detect races.
-- **Race detection is a strategy.** Anything with `detect(df) -> Series[bool]` satisfies the
-  `RaceDetector` protocol. `HeuristicRaceDetector` ports the thesis heuristic (high heart rate,
+- **Race detection is a strategy.** Detectors subclass the `RaceDetector` base class and
+  implement `detect(df) -> Series[bool]`. `HeuristicRaceDetector` ports the thesis heuristic (high heart rate,
   speed spike, standard distance, ...) and `reasons()` shows why a run was flagged.
   `StandardDistanceDetector` is a simple alternative.
 - **No leakage.** A race's features use only activities strictly before the race date:

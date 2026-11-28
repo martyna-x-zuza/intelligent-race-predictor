@@ -12,6 +12,7 @@ from race_predictor.features._dataset import (
     FloatArray,
     Index,
     RaceDataset,
+    build_query_dataset,
     build_race_dataset,
 )
 
@@ -24,5 +25,6 @@ __all__ = [
     "FloatArray",
     "Index",
     "RaceDataset",
+    "build_query_dataset",
     "build_race_dataset",
 ]

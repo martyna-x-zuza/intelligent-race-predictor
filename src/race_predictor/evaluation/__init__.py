@@ -5,6 +5,7 @@ This is the public interface of the package; its modules are internal.
 
 from race_predictor.evaluation._metrics import Metrics, evaluate
 from race_predictor.evaluation._runner import (
+    AVAILABLE_FACTORIES,
     DEFAULT_FACTORIES,
     EvaluationParams,
     ModelFactory,
@@ -18,6 +19,7 @@ from race_predictor.evaluation._runner import (
 from race_predictor.evaluation._splits import chronological_split, grouped_splits
 
 __all__ = [
+    "AVAILABLE_FACTORIES",
     "DEFAULT_FACTORIES",
     "EvaluationParams",
     "Metrics",

@@ -19,8 +19,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       # `just` comes with the dev dependencies, so CI runs the same recipes as a developer.
+      # deep (TensorFlow) and app (Streamlit) are needed to test the GRU, LSTM and the app.
       - name: Install
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,deep,app]"
       - name: Lint
         run: just lint
       - name: Type check

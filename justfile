@@ -35,6 +35,15 @@ check: lint typecheck test
 baselines *args:
     race-predictor baselines {{ args }}
 
+# Compare the GRU and LSTM with the baselines (needs the deep extra): docs/RESULTS_SEQUENCE.md
+sequence:
+    race-predictor baselines --models Riegel Ridge GRU LSTM \
+        --report docs/RESULTS_SEQUENCE.md --artifacts .artifacts/sequence
+
+# Start the Streamlit app (needs the app extra)
+app:
+    streamlit run src/race_predictor/app.py
+
 # Delete all tool caches and outputs
 clean:
     rm -rf .artifacts

@@ -11,6 +11,7 @@ evaluation). Every example has two views of the athlete's preparation:
 The target is race pace in seconds per kilometre.
 """
 
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, fields, replace
 from typing import Self
 
@@ -384,6 +385,81 @@ def build_race_dataset(df: pd.DataFrame, days_window: int = 365, min_runs: int =
         raise DataValidationError(
             f"no race has {min_runs} or more earlier runs in its {days_window}-day window"
         )
+    return _assemble(seqs, statics, targets, metas)
+
+
+def build_query_dataset(
+    df: pd.DataFrame,
+    distances_m: Sequence[float],
+    race_date: pd.Timestamp | None = None,
+    elevation_gain_m: float = 0.0,
+    days_window: int = 365,
+    min_runs: int = 3,
+) -> RaceDataset:
+    """Build the features of hypothetical races of one athlete, to predict their times.
+
+    Like :func:`build_race_dataset`, only activities strictly before ``race_date`` are used.
+
+    Args:
+        df: Activity table of a single athlete, cleaned by ``cleaning_pipeline("predict")``.
+        distances_m: Distance of each hypothetical race, in metres.
+        race_date: Date of the races; the day after the athlete's last activity by default.
+        elevation_gain_m: Elevation gain of the races, in metres.
+        days_window: Length of the window before the races, in days.
+        min_runs: Fewest runs the window must have.
+
+    Returns:
+        One example per distance; the targets are unknown and set to 0.
+
+    Raises:
+        DataValidationError: If ``df`` has several athletes or the window has too few runs.
+    """
+    athlete_ids = df["athlete_id"].unique()
+    if len(athlete_ids) != 1:
+        raise DataValidationError(f"expected the activities of one athlete, got {len(athlete_ids)}")
+    if race_date is None:
+        race_date = df["date"].max() + pd.Timedelta(days=1)
+    runs = df[df["type"] == ActivityType.RUN]
+    years = _years_of_experience(runs)
+
+    seqs: list[npt.NDArray[np.float32]] = []
+    statics: list[RaceFeatures] = []
+    metas: list[dict[str, object]] = []
+    for distance_m in distances_m:
+        race = pd.Series(
+            {"date": race_date, "distance_m": distance_m, "elevation_gain_m": elevation_gain_m}
+        )
+        example = _example(df, runs, race, years, days_window, min_runs)
+        if example is None:
+            raise DataValidationError(
+                f"need {min_runs} or more runs in the {days_window} days before "
+                f"{race_date:%Y-%m-%d}"
+            )
+        statics.append(example[0])
+        seqs.append(example[1])
+        metas.append(
+            {"athlete_id": athlete_ids[0], "race_date": race_date, "race_distance_m": distance_m}
+        )
+    return _assemble(seqs, statics, [0.0] * len(statics), metas)
+
+
+def _assemble(
+    seqs: list[npt.NDArray[np.float32]],
+    statics: list[RaceFeatures],
+    targets: list[float],
+    metas: list[dict[str, object]],
+) -> RaceDataset:
+    """Combine per-race parts into a dataset.
+
+    Args:
+        seqs: Run sequence of each race.
+        statics: Static features of each race.
+        targets: Race pace of each race, in s/km.
+        metas: ``athlete_id``, ``race_date`` and ``race_distance_m`` of each race.
+
+    Returns:
+        The dataset.
+    """
     return RaceDataset(
         seqs,
         pd.DataFrame([features.as_row() for features in statics]),

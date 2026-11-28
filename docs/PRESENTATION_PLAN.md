@@ -177,8 +177,8 @@ copies of a notebook cell."
   returns the same kind." Mention only if time allows.
 
 **Be honest about the result (10 s):** "On 160 races from 13 athletes, Riegel's 1981 formula is
-hard to beat. That is the point of a baseline: the neural networks in the next milestone must
-beat it."
+hard to beat. The GRU and LSTM we tried did not beat it either, so the formula is the model we
+ship."
 
 **Takeaway line:** "Make leakage a one-line, tested rule, and compare models only through one
 interface."
@@ -255,7 +255,7 @@ Close with: "We also *removed* things: a registry decorator, `from __future__` i
 | Is the pipeline over-engineered for pandas? | Each step is ~10 lines and tested alone. The payoff is the `train`/`predict` split, which would otherwise be two copies. |
 | Why generators in ingestion? | Memory and early exit. `read` and `iter_athletes` yield one item at a time. |
 | Why remove the registry? | With two formats it cost a nested decorator, a `TypeVar` and a hidden import for no benefit. Bring it back at ~10 formats. |
-| Does the model beat the baseline? | Not yet. Riegel is hard to beat on 160 races. Sequence models are the next milestone. |
+| Does the model beat the baseline? | No. Riegel is hard to beat on 160 races; the GRU and LSTM were worse on unseen athletes (see `docs/RESULTS_SEQUENCE.md`). |
 
 ---
 

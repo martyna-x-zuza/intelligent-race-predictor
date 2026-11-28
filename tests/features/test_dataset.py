@@ -10,6 +10,7 @@ from race_predictor.features import (
     RIEGEL_COLUMNS,
     SEQ_FEATURES,
     RaceDataset,
+    build_query_dataset,
     build_race_dataset,
 )
 from tests.conftest import Days, Frame
@@ -85,3 +86,30 @@ def test_subset_by_positions_and_mask(cleaned: pd.DataFrame) -> None:
 def test_inconsistent_parts_are_rejected() -> None:
     with pytest.raises(DataValidationError, match="inconsistent"):
         RaceDataset([], pd.DataFrame({"x": [1.0]}), np.array([1.0]), pd.DataFrame({"x": [1]}))
+
+
+def test_query_dataset_describes_hypothetical_races_after_the_last_activity(
+    cleaned: pd.DataFrame,
+) -> None:
+    athlete = cleaned[cleaned["athlete_id"] == "a"]
+    ds = build_query_dataset(athlete, [5_000.0, 10_000.0], elevation_gain_m=120.0)
+    assert ds.meta["race_distance_m"].tolist() == [5_000.0, 10_000.0]
+    assert ds.static["race_elevation_gain_m"].tolist() == [120.0, 120.0]
+    assert ds.meta["race_date"].nunique() == 1
+    assert ds.meta.loc[0, "race_date"] == athlete["date"].max() + pd.Timedelta(days=1)
+    assert (ds.y == 0).all()
+
+
+def test_query_dataset_uses_only_runs_before_the_race_date(
+    cleaned: pd.DataFrame, days: Days
+) -> None:
+    athlete = cleaned[cleaned["athlete_id"] == "a"]
+    ds = build_query_dataset(athlete, [10_000.0], race_date=days(50))
+    assert ds.static.loc[0, "n_runs"] == 10
+
+
+def test_query_dataset_needs_one_athlete_with_enough_runs(cleaned: pd.DataFrame) -> None:
+    with pytest.raises(DataValidationError, match="one athlete"):
+        build_query_dataset(cleaned, [10_000.0])
+    with pytest.raises(DataValidationError, match="need 50 or more runs"):
+        build_query_dataset(cleaned[cleaned["athlete_id"] == "a"], [10_000.0], min_runs=50)

@@ -17,6 +17,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+app = ["streamlit>=1.35"]
+deep = ["tensorflow>=2.16,<2.22"]
 dev = [
     "mypy>=1.10",
     "pandas-stubs>=2.1",
@@ -74,7 +76,7 @@ files = ["src", "tests"]
 cache_dir = ".artifacts/mypy"
 
 [[tool.mypy.overrides]]
-module = ["sklearn.*"]
+module = ["sklearn.*", "keras.*", "streamlit.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

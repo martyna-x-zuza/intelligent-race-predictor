@@ -47,3 +47,20 @@ def test_baselines_writes_the_report_and_the_artifacts(
     results = (artifacts / "results.csv").read_text().splitlines()
     assert results[0].startswith("model,protocol,mae_time_min")
     assert len(results) == 1 + 2 * 2  # header + 2 models x 2 protocols
+
+
+@pytest.mark.skipif(not DATA.exists(), reason="sample exports not present")
+def test_predict_prints_a_time_and_a_range_per_distance(capsys: pytest.CaptureFixture[str]) -> None:
+    export = next((DATA / "strava_activities").glob("*.csv"))
+    main(["predict", str(export), "--data", str(DATA), "--distances-km", "5", "10"])
+    lines = capsys.readouterr().out.splitlines()
+    assert "predicted" in lines[0]
+    assert [line.split("km")[0].strip() for line in lines[1:]] == ["5", "10"]
+    assert all(" - " in line for line in lines[1:])
+
+
+def test_predict_reports_an_unsupported_file(tmp_path: Path) -> None:
+    export = tmp_path / "other.csv"
+    export.write_text("a,b\n1,2\n")
+    with pytest.raises(SystemExit, match="error:"):
+        main(["predict", str(export)])

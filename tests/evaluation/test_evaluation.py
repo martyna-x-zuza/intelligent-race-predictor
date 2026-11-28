@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 
 from race_predictor.evaluation import (
+    AVAILABLE_FACTORIES,
+    DEFAULT_FACTORIES,
     EvaluationParams,
     chronological_split,
     compare_models,
@@ -123,3 +125,9 @@ def test_write_report_keeps_hand_written_conclusions(tmp_path: Path) -> None:
     text = path.read_text()
     assert "new numbers" in text and "old numbers" not in text
     assert "Riegel is hard to beat." in text and "(todo)" not in text
+
+
+def test_the_recurrent_models_are_available_but_not_run_by_default() -> None:
+    assert {"GRU", "LSTM"} <= set(AVAILABLE_FACTORIES)
+    assert set(DEFAULT_FACTORIES) < set(AVAILABLE_FACTORIES)
+    assert not {"GRU", "LSTM"} & set(DEFAULT_FACTORIES)

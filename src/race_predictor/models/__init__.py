@@ -12,13 +12,17 @@ from race_predictor.models._baselines import (
     TabularModel,
     riegel_time,
 )
+from race_predictor.models._sequence import GRUModel, LSTMModel, SequenceModel
 
 __all__ = [
     "RIEGEL_EXPONENT",
+    "GRUModel",
     "GradientBoostingBaseline",
+    "LSTMModel",
     "RaceModel",
     "RidgeBaseline",
     "RiegelBaseline",
+    "SequenceModel",
     "TabularModel",
     "riegel_time",
 ]

@@ -2,7 +2,7 @@
 
 Predict running race times (5 km to marathon) from Strava and Garmin training data.
 
-> **Status:** work in progress, built milestone by milestone.
+> **Status:** all six milestones are done.
 
 ## Milestones
 
@@ -10,8 +10,8 @@ Predict running race times (5 km to marathon) from Strava and Garmin training da
 - [x] 2. Data ingestion
 - [x] 3. Cleaning and feature pipeline
 - [x] 4. Baselines and evaluation
-- [ ] 5. LSTM and GRU models
-- [ ] 6. Application and final delivery
+- [x] 5. LSTM and GRU models
+- [x] 6. Application and final delivery
 
 ## Development
 
@@ -21,6 +21,14 @@ Requires Python 3.11+.
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+```
+
+Optional extras: `deep` (TensorFlow, for the GRU and LSTM models; needs Python 3.11 to 3.13, as
+TensorFlow has no stable release for newer versions) and `app` (Streamlit). Without
+them everything else works and the tests that need them are skipped.
+
+```bash
+pip install -e ".[dev,deep,app]"
 ```
 
 The [`justfile`](justfile) is the entry point of the repository: every task is a recipe, and
@@ -35,9 +43,11 @@ them.
 | `just test` | `pytest` with coverage; extra arguments go to pytest (`just test -k sources`) |
 | `just format` | reformat and apply automatic lint fixes |
 | `just baselines` | evaluate the baselines (see below) |
+| `just sequence` | evaluate the GRU and LSTM against the baselines (needs `deep`) |
+| `just app` | start the Streamlit app (needs `app`) |
 | `just clean` | delete `.artifacts/` |
 
-GitHub Actions runs the same recipes on Python 3.11 and 3.12 for every push to `main` and every
+GitHub Actions installs all extras and runs the same recipes on Python 3.11 and 3.12 for every push to `main` and every
 pull request, then `just baselines` and uploads the coverage report and the baseline results as
 a build artifact.
 
@@ -71,6 +81,7 @@ subcommand per action. The `just` recipes call it.
 
 ```bash
 race-predictor baselines --data data --models Riegel Ridge --n-splits 5
+race-predictor predict my_strava_export.csv
 race-predictor --help
 ```
 
@@ -80,6 +91,8 @@ race-predictor --help
 justfile                 # entry point: just check, just baselines, ...
 src/race_predictor/
 ├── cli.py               # the race-predictor command
+├── predictor.py         # RacePredictor: predicted times with a range
+├── app.py               # Streamlit app
 ├── exceptions.py        # RacePredictorError and its subclasses
 ├── utils.py             # timer() context manager
 ├── domain/
@@ -99,7 +112,8 @@ src/race_predictor/
 │   └── _dataset.py      # RaceDataset: one example per race
 ├── models/
 │   ├── _base.py         # RaceModel interface
-│   └── _baselines.py    # Riegel formula, ridge regression, gradient boosting
+│   ├── _baselines.py    # Riegel formula, ridge regression, gradient boosting
+│   └── _sequence.py     # GRU and LSTM (Keras)
 └── evaluation/
     ├── _metrics.py      # MAE, RMSE, MAPE, median APE
     ├── _splits.py       # chronological split and athlete-grouped CV
@@ -203,6 +217,46 @@ run's parameters (`params.json`) and raw metrics (`results.csv`) to `.artifacts/
 numbers are regenerated on every run, but the hand-written conclusions are kept. In short: Riegel's formula
 is hard to beat. Ridge regression is better on athletes seen in training but much worse on new
 ones, and gradient boosting overfits the 160 races.
+
+## Recurrent models
+
+`GRUModel` and `LSTMModel` (`models/_sequence.py`) follow the thesis architecture: two
+bidirectional recurrent layers over the athlete's runs in the 365 days before the race, a dense
+branch for the static features and a regression head. They share one base class, so the cell is
+the only difference, and Keras is imported only when a model is fitted (`deep` extra).
+
+```bash
+just sequence    # GRU and LSTM against the baselines, writes docs/RESULTS_SEQUENCE.md
+```
+
+Result, in [`docs/RESULTS_SEQUENCE.md`](docs/RESULTS_SEQUENCE.md): neither beats Riegel on athletes
+it has not seen (median error 9.5 % and 12.2 % against 4.9 %). The LSTM has the lowest RMSE on the
+athletes' next race, but 160 races from 13 athletes are too few to learn what Riegel's formula
+already knows, so Riegel stays the default model.
+
+## Prediction and app
+
+`RacePredictor` (`predictor.py`) trains a model on the exports in `data/` and predicts the times
+of an athlete's export. Each time comes with a range: the 10th to 90th percentile of the model's
+error on athletes it was not trained on, measured with the grouped cross-validation.
+
+```bash
+race-predictor predict my_strava_export.csv --distances-km 10 21.0975 --elevation-m 100
+```
+
+```python
+from pathlib import Path
+
+from race_predictor.predictor import RacePredictor, format_time, load_activities
+
+predictor = RacePredictor.from_data_dir(Path("data"))
+for p in predictor.predict(load_activities("my_strava_export.csv")):
+    print(p.distance_m, format_time(p.time_s), format_time(p.low_s), format_time(p.high_s))
+```
+
+`just app` starts a Streamlit page (`app.py`): upload a Strava or Garmin export, or pick an
+anonymised sample athlete, and get a predicted time and range for 5 km to the marathon. It needs
+at least 3 runs in the last 365 days. The races are predicted for the day after the last activity.
 
 ## Errors
 

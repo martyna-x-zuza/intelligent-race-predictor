@@ -31,8 +31,8 @@ If you are running late, use the cut list at the end.
 **Say:**
 - "Race Predictor takes Strava and Garmin exports and predicts running race times. It is a
   thesis project we turned into a package."
-- "It is small (about 3,000 lines of source, most of it docstrings), but it has the problems of a bigger one: messy
-  inputs, two formats, steps that must be the same in training and prediction, and models that
+- "It is small (about 2,900 lines of source, roughly 40 % of it docstrings, plus 1,300 lines of
+  tests), but it has the problems of a bigger one: messy inputs, two formats, steps that must be the same in training and prediction, and models that
   must be compared fairly."
 - Point at the layout: `sources` (ingest) → `processing` (clean) → `features` (one example per
   race) → `models` and `evaluation`. "Each folder is one stage and each has a small public
@@ -91,8 +91,9 @@ when parsing untrusted JSON.
 - **Template Method** (the highlight): "`read()` is written once. It checks the format, loops
   over rows, skips the bad ones and logs a single warning with the count. Adapters only
   describe their own format."
-- `yield`: "`read` is a generator. Rows stream out one by one, so a 5,000-row export is never
-  fully in memory, and `iter_athletes` is lazy for the same reason."
+- `yield`: "`read` is a generator. Callers get validated activities one at a time and can stop
+  early. The file itself is small, so pandas reads it whole: the laziness is in building the
+  objects, not in reading the file. `iter_athletes` is lazy for the same reason."
 - `@classmethod can_read`: "We sniff the CSV header. It is a classmethod because we ask the
   class before we create any object."
 - `frozenset` for `required_columns` and `.issubset(header)`: "All required columns present"
@@ -215,7 +216,7 @@ interface."
 
 **Run:**
 ```bash
-python3.11 -m race_predictor baselines --models Riegel Ridge --report .artifacts/demo.md
+just baselines --models Riegel Ridge --report .artifacts/demo.md
 ```
 **Say while it runs:** "It loads both export folders, cleans, detects races, builds the dataset
 and evaluates under both protocols." Point at the table: errors per model and protocol, plus
@@ -253,7 +254,7 @@ Close with: "We also *removed* things: a registry decorator, `from __future__` i
 | Why ABCs and not Protocols? | One mechanism for every interface (`read`, `fit`, `detect`); a missing method fails at instantiation. A Protocol would also work for `detect`. |
 | Why strict mypy on tests too? | Fixtures and helpers are code. Typed tests catch API drift when signatures change. |
 | Is the pipeline over-engineered for pandas? | Each step is ~10 lines and tested alone. The payoff is the `train`/`predict` split, which would otherwise be two copies. |
-| Why generators in ingestion? | Memory and early exit. `read` and `iter_athletes` yield one item at a time. |
+| Why generators in ingestion? | A lazy interface and early exit: `read` and `iter_athletes` yield one item at a time. The CSV itself is small and read whole by pandas. |
 | Why remove the registry? | With two formats it cost a nested decorator, a `TypeVar` and a hidden import for no benefit. Bring it back at ~10 formats. |
 | Does the model beat the baseline? | No. Riegel is hard to beat on 160 races; the GRU and LSTM were worse on unseen athletes (see `docs/RESULTS_SEQUENCE.md`). |
 
